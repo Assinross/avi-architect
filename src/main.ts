@@ -59,7 +59,7 @@ function show(next:Screen){
   if(next==='menu'){
     app.innerHTML=`<section class="menu"><header class="mast">${brand('Архитектурная мастерская')}${button('help','<span>Справка</span>','help','ghost')}</header>
     <div class="hero"><div class="kicker">Глава I · Новая долина</div><h1 lang="en">Architects<br><em>of Time</em></h1><p>Спроектируйте первый дом и вдохните жизнь в город у реки.</p>
-    <div class="menu-actions">${button('new','Новая игра<span class="tail">'+icon('next')+'</span>','build')}<button class="minor continue" data-action="continue" ${saved?'':'disabled'}>${icon('play')}Продолжить</button>${button('themes','Выбрать стиль','palette','minor')}${button('settings','Настройки','settings','minor')}</div></div>
+    <div class="menu-actions">${button('new','Новая игра<span class="tail">'+icon('next')+'</span>','build')}<button class="minor continue" data-action="continue" ${saved?'':'disabled'}>${icon('play')}Продолжить</button>${button('workshop','Свободная мастерская','build','minor')}${button('themes','Выбрать стиль','palette','minor')}${button('settings','Настройки','settings','minor')}</div></div>
     <footer class="foot"><div class="place">${icon('pin')}<div><strong>Новая долина</strong><small>Речная низина · Глава I</small></div></div><div class="orientation" aria-hidden="true">С${icon('compass')}</div></footer></section>`
     return
   }
@@ -131,6 +131,7 @@ function act(action:string){
     case 'new': if(saved)popup('Начать новую игру?',`<p>Новая долина заменит сохранённый город и его чертежи.</p><div class="row">${button('start','Начать заново','build')}${button('close','Отмена','back','minor')}</div>`);else start();break
     case 'start':start();break
     case 'continue':if(saved){world=saved;show('city')}break
+    case 'workshop':window.location.assign(new URL('./workshop.html',document.baseURI).href);break
     case 'settings':settings();break
     case 'themes':themes();break
     case 'journal':journal();break
