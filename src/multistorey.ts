@@ -24,6 +24,8 @@ export interface FloorPlan {
 }
 export interface MultiStoreyPlan {
   floors: FloorPlan[]
+  /** Cosmetic only: does not change construction cost or the structural plan. */
+  style?: 'classic' | 'modern'
 }
 export interface Rect { x0: number; z0: number; x1: number; z1: number }
 export interface Column {
@@ -159,12 +161,12 @@ export function addFloor(plan:MultiStoreyPlan):MultiStoreyPlan {
   const previous=plan.floors.at(-1)
   if (!previous)throw Error('Для второго этажа сначала нужен первый.')
   const walls=previous.walls.map((w,i)=>({id:`level-${plan.floors.length}-${i}`,a:[...w.a] as Point,b:[...w.b] as Point}))
-  return {floors:[...plan.floors,{walls,openings:[],partitions:[],stairToNext:null}]}
+  return {...plan,floors:[...plan.floors,{walls,openings:[],partitions:[],stairToNext:null}]}
 }
 
 export function removeTopFloor(plan:MultiStoreyPlan):MultiStoreyPlan {
   if(plan.floors.length<2)throw Error('Нельзя удалить первый этаж.')
-  return {floors:plan.floors.slice(0,-1).map((f,i,all)=>
+  return {...plan,floors:plan.floors.slice(0,-1).map((f,i,all)=>
     i===all.length-1 ? {...f,stairToNext:null} : f)}
 }
 

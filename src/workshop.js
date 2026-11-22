@@ -28,7 +28,7 @@ const rectFloor=(x0,z0,x1,z1,index)=>({walls:[
  {id:`f${index}c`,a:[x1,z1],b:[x0,z1]}, {id:`f${index}d`,a:[x0,z1],b:[x0,z0]},
 ],openings:[],partitions:[],stairToNext:null});
 const starter=mode==='home'?rectFloor(2,2,6,5,0):mode==='bakery'?rectFloor(2,2,7,6,0):rectFloor(1,1,8,7,0);
-let project={floors:[starter]}, active=0,tool='inspect',start=null,past=[],future=[];
+let project={floors:[starter],style:'classic'}, active=0,tool='inspect',start=null,past=[],future=[];
 try {
   const saved=JSON.parse(localStorage.getItem(key)||'null');
   if(isSafePlan(saved))project=saved;
@@ -38,7 +38,7 @@ try {
   }
 } catch {}
 function isSafePlan(p) {
-  return p && Array.isArray(p.floors) && p.floors.length > 0 && p.floors.length <= 400 && p.floors.every(f =>
+  return p && (p.style === undefined || p.style === 'classic' || p.style === 'modern') && Array.isArray(p.floors) && p.floors.length > 0 && p.floors.length <= 400 && p.floors.every(f =>
     f && Array.isArray(f.walls) && f.walls.length === 4 &&
     Array.isArray(f.openings) && f.openings.length < 600 &&
     Array.isArray(f.partitions) && f.partitions.length < 600 &&
@@ -201,6 +201,7 @@ function paint(){
  const f=project.floors[active],r=rfloor(),issues=Engine.validate(project),careerIssues=builderIssues(project,mode),posts=Engine.columns(project),roof=Engine.roofs(project),price=Engine.estimate(project);
  $('floorcount').textContent=project.floors.length;$('floorStat').textContent=project.floors.length;
  $('selectedFloor').textContent=`${active+1} этаж`;$('floorTitle').textContent=`${active+1} этажа`;
+ $('buildingStyle').value=project.style||'classic';
  if(f.stairToNext){$('stairFacing').value=f.stairToNext.facing;$('stairKind').value=f.stairToNext.kind||'straight';}
  $('floors').innerHTML=[...project.floors].reverse().map((floor,ri)=>{const i=project.floors.length-1-ri;
   return `<button class="floor" data-floor="${i}" aria-pressed="${i===active}">▣ ${i+1} этаж <span>${Engine.rectangleArea(Engine.footprint(floor)||{x0:0,x1:0,z0:0,z1:0})} м²</span></button>`}).join('');
@@ -430,7 +431,7 @@ $('add').addEventListener('click',()=>{if(!profile.stairs||project.floors.length
 $('remove').addEventListener('click',()=>{if(!profile.stairs||project.floors.length<2)return;modify(()=>{project=Engine.removeTopFloor(project);active=Math.min(active,project.floors.length-1);start=null});message('Верхний этаж удалён.')});
 $('undo').addEventListener('click',()=>{if(!past.length)return;future.push(deep(project));project=past.pop();active=Math.min(active,project.floors.length-1);start=null;save();paint();message('Последнее действие отменено.')});
 $('redo').addEventListener('click',()=>{if(!future.length)return;past.push(deep(project));project=future.pop();active=Math.min(active,project.floors.length-1);start=null;save();paint();message('Действие повторено.')});
-$('reset').addEventListener('click',()=>{if(confirm('Создать новый проект? Текущий эскиз будет удалён.')){modify(()=>{project={floors:[deep(starter)]};active=0;start=null});message('Создан новый проект.') }});
+$('reset').addEventListener('click',()=>{if(confirm('Создать новый проект? Текущий эскиз будет удалён.')){modify(()=>{project={floors:[deep(starter)],style:'classic'};active=0;start=null});message('Создан новый проект.') }});
 $('import').addEventListener('click', () => $('importFile').click());
 $('importFile').addEventListener('change', async event => {
   const file = event.target.files?.[0];
@@ -441,7 +442,7 @@ $('importFile').addEventListener('change', async event => {
     if (!isSafePlan(data) || Engine.validate(data).some(i => i.kind === 'footprint'))
       throw Error('Неверный формат проекта.');
     if (!confirm('Загрузить проект вместо текущего?')) return;
-    modify(() => {project={floors:deep(data.floors)}; active=0; start=null;});
+    modify(() => {project={floors:deep(data.floors),style:data.style||'classic'}; active=0; start=null;});
     message('Проект импортирован.');
   } catch (error) {toast(error.message || 'Не удалось прочитать проект.');}
   finally {event.target.value='';}
@@ -460,6 +461,7 @@ $('fromCity').addEventListener('click', () => {
     message('Дом Эммы скопирован. Теперь можно добавлять этажи. Сохранение города не меняется.');
   } catch {toast('Не удалось открыть сохранение города.');}
 });
+$('buildingStyle').addEventListener('change',()=>{const style=$('buildingStyle').value;if(!['classic','modern'].includes(style)||style===(project.style||'classic'))return;modify(()=>{project.style=style});message(style==='modern'?'Современный дом: остеклённая веранда с зоной отдыха.':'Классический дом: черепица, ставни и цветники.')});
 $('roofSwitch').addEventListener('click',()=>{showRoof=!showRoof;$('roofSwitch').textContent=showRoof?'Крыша: да':'Крыша: нет';volume()});
 $('cutaway').addEventListener('click',()=>{cutaway=!cutaway;$('cutaway').setAttribute('aria-pressed',String(cutaway));$('cutaway').textContent=cutaway?'Срез: да':'Срез: нет';volume()});
 $('export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({format:'avi-architect-multistorey',version:1,...project},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='avi-architect-multistorey.json';a.click();URL.revokeObjectURL(url);toast('План экспортирован в JSON.')});

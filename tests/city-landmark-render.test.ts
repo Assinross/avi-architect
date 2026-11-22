@@ -32,4 +32,38 @@ describe('Town multi-storey mesh',()=>{
     expect(plan).toEqual(before)
     disposeGroup(volume)
   })
+
+  it('supports two facade styles without altering the floor geometry',()=>{
+    const floor={
+      walls:[
+        {id:'a',a:[2,2] as [number,number],b:[8,2] as [number,number]},
+        {id:'b',a:[8,2] as [number,number],b:[8,7] as [number,number]},
+        {id:'c',a:[8,7] as [number,number],b:[2,7] as [number,number]},
+        {id:'d',a:[2,7] as [number,number],b:[2,2] as [number,number]},
+      ],
+      openings:[{wallId:'a',offset:.5,kind:'door' as const},
+        {wallId:'b',offset:1.5,kind:'window' as const}],
+    }
+    const original=fromLegacy(floor)
+    const modern={...original,style:'modern' as const}
+    const before=structuredClone(modern)
+    const contemporary=cityLandmark(modern,palettes[0],0)
+    expect(contemporary.userData.architecturalStyle).toBe('modern')
+    expect(contemporary.userData.glass).toHaveLength(4)
+    expect(contemporary.userData.decorativeParts).toBeGreaterThan(20)
+    expect(modern).toEqual(before)
+    disposeGroup(contemporary)
+
+    const traditional=cityLandmark({...original,style:'classic'},palettes[0],0)
+    expect(traditional.userData.architecturalStyle).toBe('classic')
+    expect(traditional.userData.glass).toHaveLength(0)
+    expect(traditional.userData.decorativeParts).toBeGreaterThan(20)
+    disposeGroup(traditional)
+
+    const withoutRoof=cityLandmark(modern,palettes[0],0,{showRoof:false})
+    expect(withoutRoof.userData.glass).toHaveLength(4)
+    expect(withoutRoof.userData.decorativeParts).toBeLessThan(1000)
+    disposeGroup(withoutRoof)
+    expect(addFloor(modern).style).toBe('modern')
+  })
 })

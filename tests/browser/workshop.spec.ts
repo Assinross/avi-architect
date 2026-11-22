@@ -64,3 +64,23 @@ test('Свободная мастерская не меняет сохранен
   await page.locator('#w').dispatchEvent('change')
   expect(await page.evaluate(() => localStorage.getItem('architects-of-time.valley'))).toBe(city)
 })
+
+test('Оформление дома: стеклянная веранда сохраняется и экспортируется', async ({page}) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('/workshop.html')
+  const style=page.getByRole('combobox',{name:'Стиль дома'})
+  await expect(style).toHaveValue('classic')
+  await style.selectOption('modern')
+  await expect(style).toHaveValue('modern')
+  let saved=await page.evaluate(() => JSON.parse(localStorage.getItem('avi-architect.multistorey-workshop.v1')||'null'))
+  expect(saved?.style).toBe('modern')
+  await page.locator('#add').click()
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('avi-architect.multistorey-workshop.v1')||'null')?.style)).toBe('modern')
+  await page.reload()
+  await expect(page.getByRole('combobox',{name:'Стиль дома'})).toHaveValue('modern')
+  await page.getByRole('combobox',{name:'Стиль дома'}).selectOption('classic')
+  saved=await page.evaluate(() => JSON.parse(localStorage.getItem('avi-architect.multistorey-workshop.v1')||'null'))
+  expect(saved?.style).toBe('classic')
+  expect(errors).toEqual([])
+})

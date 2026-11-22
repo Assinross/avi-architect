@@ -2,9 +2,12 @@ import * as T from 'three'
 import { STOREY_HEIGHT, wallLength, footprint, subtractRect, stairRect, columns, roofs, openingRuns, overhangs,
   type MultiStoreyPlan, type Wall, type Opening, type Rect } from '../multistorey'
 import { Artist, roof, shade, type Palette } from './art'
+import { architecturalDetails } from './architectural-details'
 
 /** Geometry-only renderer: the workshop and town use the same immutable floor plans. */
-export function cityLandmark(plan:MultiStoreyPlan,p:Palette,theme:number,options:{showRoof?:boolean}={}):T.Group {
+export function cityLandmark(plan:MultiStoreyPlan,palette:Palette,theme:number,options:{showRoof?:boolean}={}):T.Group {
+  const modern=plan.style==='modern'
+  const p:Palette=modern?{...palette,plaster:0xf2ede2,wood:0x4e4b45,stone:0xbeb9ae,roof:0xb85f48}:palette
   const a=new Artist()
   const putRect=(r:Rect,y:number,h:number,color:number)=>{
     a.put('box',(r.x0+r.x1)/2,y,(r.z0+r.z1)/2,r.x1-r.x0,h,r.z1-r.z0,color)
@@ -13,6 +16,9 @@ export function cityLandmark(plan:MultiStoreyPlan,p:Palette,theme:number,options
   // wall top touches the underside of the next slab, without the old 9–13 cm seam.
   const slab=0.18
   function wall(w:Wall,openings:Opening[],level:number,inside:boolean) {
+    // The contemporary ground floor is enclosed by full-height glass instead
+    // of opaque masonry. Its glazing and frames are created once below.
+    if(modern && level===0 && !inside)return
     const len=wallLength(w)
     if(!len)return
     const alongX=w.a[1]===w.b[1]
@@ -122,7 +128,12 @@ export function cityLandmark(plan:MultiStoreyPlan,p:Palette,theme:number,options
         width+.34,depth+.37,Math.max(.60,Math.min(2,depth*.31)),p,109+plan.floors.length,theme<2)
     }
   }
+  const decoration=architecturalDetails(a,plan,p,modern,options.showRoof!==false)
   const building=a.finish()
+  for(const pane of decoration.glazing)building.add(pane)
+  building.userData.glass=decoration.glazing
+  building.userData.architecturalStyle=modern?'modern':'classic'
+  building.userData.decorativeParts=decoration.detailCount
   // Expose explicit elevation intervals for deterministic seam regression tests.
   building.userData.floorSlabThickness=slab
   building.userData.wallBottom=slab

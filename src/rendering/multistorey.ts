@@ -95,7 +95,7 @@ export class MultiStoreyView {
     const floors=view.cutawayFloor===undefined?plan.floors:
       plan.floors.slice(0,count).map((floor,i)=>i===count-1?{...floor,stairToNext:null}:floor)
     // The city and workshop use exactly the same physical geometry.
-    this.generated=cityLandmark({floors},palettes[0],0,
+    this.generated=cityLandmark({...plan,floors},palettes[0],0,
       {showRoof:view.showRoof!==false&&view.cutawayFloor===undefined})
     this.root.add(this.generated)
     if(count!==this.floorCount){

@@ -36,8 +36,8 @@ function validFloor(value: unknown): value is FloorPlan {
 
 /** Validate untrusted, persisted geometry before passing it to Three.js. */
 export function isCityLandmark(value: unknown): value is MultiStoreyPlan {
-  if (!isRecord(value) || !Array.isArray(value.floors) ||
-      value.floors.length < 1 || value.floors.length > CITY_MAX_FLOORS ||
+  if (!isRecord(value) || (value.style !== undefined && value.style !== 'classic' && value.style !== 'modern') ||
+      !Array.isArray(value.floors) || value.floors.length < 1 || value.floors.length > CITY_MAX_FLOORS ||
       !value.floors.every(validFloor)) return false
   const plan = value as unknown as MultiStoreyPlan
   if (validate(plan).length || plan.floors.some(f=>!footprint(f))) return false
