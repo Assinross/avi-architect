@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Avi Architect — прототип многоэтажной мастерской</title>
+<title>Avi Architect — архитектурный планировщик</title>
 <style>
 :root{--ink:#264537;--muted:#6a786e;--bg:#e9eee4;--paper:#fffdf4;--line:#d4decb;--leaf:#426d51;--brick:#b76c48;--gold:#e8b96e;color-scheme:light;font-family:Inter,"Trebuchet MS",sans-serif}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink)}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:3px solid #d69b52;outline-offset:3px}
@@ -14,17 +14,23 @@ a.button{text-decoration:none;display:inline-flex;align-items:center;justify-con
 .three-host{width:100%;height:clamp(330px,43vh,540px);border-radius:10px;overflow:hidden;background:#c8dfd7}
 .three-host canvas{display:block;width:100%;height:100%;touch-action:none}
 @media(max-width:790px){.three-host{height:360px}.actions{max-width:65%}}
+
+[hidden]{display:none!important}
+body.career .workspace{grid-template-columns:minmax(250px,294px) minmax(400px,1fr)}
+body.career.show-preview .workspace{grid-template-columns:minmax(250px,294px) minmax(400px,1fr) minmax(310px,.95fr)}
+@media(max-width:1250px){body.career .workspace,body.career.show-preview .workspace{grid-template-columns:280px minmax(0,1fr)}body.career .preview-panel{grid-column:2}}
+@media(max-width:790px){body.career .workspace,body.career.show-preview .workspace{grid-template-columns:1fr}body.career .preview-panel{grid-column:auto}}
 </style>
 </head>
 <body>
 <div class="shell">
 <header class="top">
- <div class="logo"><div class="logo-mark">A</div><div><strong>Architects of Time</strong><small>СВОБОДНАЯ МНОГОЭТАЖНАЯ МАСТЕРСКАЯ</small></div></div>
- <div class="actions"><a class="button" href="./">← В город</a><button class="button primary" id="publish" title="После выполнения заказов — построить дом на третьем участке">Поселить в городе</button><button class="button" id="fromCity">Дом из города</button><button class="button" id="undo">↶ Отменить</button><button class="button" id="redo">↷ Повторить</button><button class="button" id="import">Импорт JSON</button><input id="importFile" type="file" accept="application/json,.json" hidden><button class="button" id="export">Экспорт JSON</button><button class="button" id="reset">Новый проект</button></div>
+ <div class="logo"><div class="logo-mark">A</div><div><strong>Architects of Time</strong><small id="modeTitle">СВОБОДНАЯ МНОГОЭТАЖНАЯ МАСТЕРСКАЯ</small></div></div>
+ <div class="actions"><a class="button" href="./">← В город</a><button class="button" id="previewToggle" hidden>Посмотреть 3D</button><button class="button primary" id="publish" title="После выполнения заказов — построить дом на третьем участке">Поселить в городе</button><button class="button" id="fromCity">Дом из города</button><button class="button" id="undo">↶ Отменить</button><button class="button" id="redo">↷ Повторить</button><button class="button" id="import">Импорт JSON</button><input id="importFile" type="file" accept="application/json,.json" hidden><button class="button" id="export">Экспорт JSON</button><button class="button" id="reset">Новый проект</button></div>
 </header>
 <div class="workspace">
  <aside class="panel">
-  <div class="section"><div class="kicker">Свободное проектирование</div><h2>Мой дом мечты</h2><p>Создавай этажи разной площади, планируй лестницы и комнаты. Колонны и крыши рассчитываются автоматически.</p></div>
+  <div class="section"><div class="kicker">Свободное проектирование</div><h2 id="mainHeading">Мой дом мечты</h2><p id="modeDescription">Создавай этажи разной площади, планируй лестницы и комнаты. Колонны и крыши рассчитываются автоматически.</p></div>
   <div class="section"><h3 class="small-title">Этажи <span class="badge" id="floorcount">1</span></h3><div class="floor-list" id="floors"></div><div class="two" style="margin-top:9px"><button class="button primary" id="add">＋ Этаж</button><button class="button" id="remove">− Верхний</button></div></div>
   <div class="section"><h3 class="small-title">Наружные стены: <span id="selectedFloor">1 этаж</span></h3><div class="dimensions"><label class="field">Начало X<input id="x0" type="number" min="0" max="11" step="1"></label><label class="field">Начало Z<input id="z0" type="number" min="0" max="9" step="1"></label><label class="field">Ширина, м<input id="w" type="number" min="1" max="12" step="1"></label><label class="field">Глубина, м<input id="d" type="number" min="1" max="10" step="1"></label></div><p>Изменяй габариты этажа. Положение колонн и крыши перестраивается автоматически.</p></div>
   <div class="section"><h3 class="small-title">Инструменты плана</h3><div class="tool-grid" id="tools"><button class="button" data-tool="partition">Перегородка</button><button class="button" data-tool="stairs">Лестница ↑</button><button class="button" data-tool="door">Дверь</button><button class="button" data-tool="window">Окно</button><button class="button" data-tool="erase">Удалить</button><button class="button" data-tool="inspect">Просмотр</button></div><label class="field" style="margin-top:10px">Направление лестницы<select id="stairFacing" class="button" aria-label="Направление лестницы"><option value="north">↑ Север</option><option value="south">↓ Юг</option><option value="east">→ Восток</option><option value="west">← Запад</option></select></label><div class="status" id="status">Выбери инструмент. Перегородку можно провести между двумя точками сетки.</div></div>

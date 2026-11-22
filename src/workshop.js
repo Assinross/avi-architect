@@ -2,18 +2,40 @@ import * as Engine from './multistorey';
 import { MultiStoreyView } from './rendering/multistorey';
 import { load as loadCity, save as saveCity } from './storage';
 import { publishLandmark } from './city-landmark';
+import { builderIssues, commissionModel, profiles } from './builder-policy';
+import { complete, currentQuest } from './model';
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
-const key='avi-architect.multistorey-workshop.v1';
+const params=new URLSearchParams(location.search);
+const careerQuest=params.get('mode')==='career' ? params.get('quest') : null;
+const mode=['home','bakery','landmark'].includes(careerQuest)?careerQuest:'free';
+const profile=profiles[mode];
+const key=mode==='free'?'avi-architect.multistorey-workshop.v1':`avi-architect.career.${mode}.v1`;
+document.title=profile.title+' · Avi Architect';
+$('modeTitle').textContent=mode==='free'?'СВОБОДНАЯ МАСТЕРСКАЯ · ВСЕ ИНСТРУМЕНТЫ ОТКРЫТЫ':'КАРЬЕРА АРХИТЕКТОРА · ПОЭТАПНОЕ РАЗВИТИЕ';
+$('mainHeading').textContent=mode==='free'?'Мой дом мечты':profile.title;
+$('modeDescription').textContent=mode==='free'
+  ?'Строй сколько угодно этажей, планируй лестницы и комнаты. Результат всегда виден справа в 3D.'
+  :mode==='home'?'Первый заказ: научись менять контур дома, добавлять вход и окна. Перегородки и этажи откроются позже.'
+  :mode==='bakery'?'Второй заказ: теперь доступны внутренние перегородки. Этажи и лестницы откроются после пекарни.'
+  :'Третий заказ: многоэтажность открыта. Спроектируй двухэтажный дом со ступенями и рассчитай бюджет.';
 const cell=36, bx=60, by=48;
 const px=x=>bx+x*cell, py=z=>by+z*cell;
 const rectFloor=(x0,z0,x1,z1,index)=>({walls:[
  {id:`f${index}a`,a:[x0,z0],b:[x1,z0]}, {id:`f${index}b`,a:[x1,z0],b:[x1,z1]},
  {id:`f${index}c`,a:[x1,z1],b:[x0,z1]}, {id:`f${index}d`,a:[x0,z1],b:[x0,z0]},
 ],openings:[],partitions:[],stairToNext:null});
-let project={floors:[rectFloor(1,1,8,7,0)]}, active=0,tool='inspect',start=null,past=[],future=[];
-try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(isSafePlan(saved)){project=saved;}}catch{}
+const starter=mode==='home'?rectFloor(2,2,6,5,0):mode==='bakery'?rectFloor(2,2,7,6,0):rectFloor(1,1,8,7,0);
+let project={floors:[starter]}, active=0,tool='inspect',start=null,past=[],future=[];
+try {
+  const saved=JSON.parse(localStorage.getItem(key)||'null');
+  if(isSafePlan(saved))project=saved;
+  else if(mode==='landmark') {
+    const city=loadCity();
+    if(city?.landmark)project=structuredClone(city.landmark);
+  }
+} catch {}
 function isSafePlan(p) {
   return p && Array.isArray(p.floors) && p.floors.length > 0 && p.floors.length <= 400 && p.floors.every(f =>
     f && Array.isArray(f.walls) && f.walls.length === 4 &&
@@ -42,13 +64,45 @@ const p3=(x,z,y)=>[300+(x-z)*16,155+(x+z)*8-y*20];
 let renderedPlan = '';
 let showRoof = true, cutaway = false;
 let scene;
-try { scene = new MultiStoreyView($('volume')) }
-catch (error) {
-  $('volume').textContent = 'Для 3D-вида нужен WebGL. Планировщик 2D продолжает работать.';
-  console.warn('WebGL unavailable:', error);
+const previewPanel=document.querySelector('.preview-panel');
+const previewToggle=$('previewToggle');
+if(!profile.live3d){
+  document.body.classList.add('career');
+  previewPanel.hidden=true;
+  previewToggle.hidden=false;
+  $('fromCity').hidden=true;
+  $('import').hidden=true;
+  $('export').hidden=true;
 }
+if(!profile.partitions)document.querySelector('[data-tool="partition"]').hidden=true;
+if(!profile.stairs) {
+  document.querySelector('[data-tool="stairs"]').hidden=true;
+  $('stairFacing').closest('label').hidden=true;
+}
+$('add').disabled=profile.maxFloors===1;
+$('remove').disabled=profile.maxFloors===1;
+$('publish').textContent=mode==='free'?'Поселить в городе':'Сдать заказ';
+function initScene(){
+  if(scene)return;
+  try{scene=new MultiStoreyView($('volume'))}
+  catch(error){
+    $('volume').textContent='Для 3D-вида нужен WebGL. Планировщик 2D продолжает работать.';
+    console.warn('WebGL unavailable:',error);
+  }
+}
+if(profile.live3d)initScene();
+previewToggle.addEventListener('click',()=>{
+  if(!previewPanel.hidden){
+    previewPanel.hidden=true;document.body.classList.remove('show-preview');
+    previewToggle.textContent='Посмотреть 3D';
+  }else{
+    previewPanel.hidden=false;document.body.classList.add('show-preview');
+    previewToggle.textContent='Вернуться к плану';
+    initScene();renderedPlan='';volume();
+  }
+});
 function volume() {
-  if (!scene) return;
+  if (!scene || previewPanel.hidden) return;
   const options={showRoof, ...(cutaway?{cutawayFloor:active}:{})};
   const current = JSON.stringify([project,options]);
   if (current !== renderedPlan) { scene.render(project, options); renderedPlan = current; }
@@ -89,21 +143,23 @@ function drawPlan(){
  $('plan').innerHTML=items.join('')
 }
 function paint(){
- const f=project.floors[active],r=rfloor(),issues=Engine.validate(project),posts=Engine.columns(project),roof=Engine.roofs(project),price=Engine.estimate(project);
+ const f=project.floors[active],r=rfloor(),issues=Engine.validate(project),careerIssues=builderIssues(project,mode),posts=Engine.columns(project),roof=Engine.roofs(project),price=Engine.estimate(project);
  $('floorcount').textContent=project.floors.length;$('floorStat').textContent=project.floors.length;
  $('selectedFloor').textContent=`${active+1} этаж`;$('floorTitle').textContent=`${active+1} этажа`;
  if(f.stairToNext)$('stairFacing').value=f.stairToNext.facing;
  $('floors').innerHTML=[...project.floors].reverse().map((floor,ri)=>{const i=project.floors.length-1-ri;
   return `<button class="floor" data-floor="${i}" aria-pressed="${i===active}">▣ ${i+1} этаж <span>${Engine.rectangleArea(Engine.footprint(floor)||{x0:0,x1:0,z0:0,z1:0})} м²</span></button>`}).join('');
- $('remove').disabled=project.floors.length===1;$('undo').disabled=!past.length;$('redo').disabled=!future.length;
+ $('remove').disabled=project.floors.length===1||!profile.stairs;$('add').disabled=project.floors.length>=profile.maxFloors;$('undo').disabled=!past.length;$('redo').disabled=!future.length;
  $('tools').querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===tool)));
  $('area').textContent=`${Engine.totalArea(project)} м²`;$('columns').textContent=posts.length;
  $('roofArea').textContent=`${roof.reduce((n,r)=>n+Engine.rectangleArea(r),0)} м²`;
  const entries=[['Наружные стены',price.outerWalls],['Перегородки',price.partitions],['Окна и двери',price.openings],['Перекрытия',price.slabs],['Лестницы',price.stairs],['Опорные колонны',price.columns],['Кровля и террасы',price.roofs]];
- $('estimate').innerHTML=entries.map(([s,n])=>`<div class="estrow"><span>${s}</span><b class="mono">${Math.round(n)} ◇</b></div>`).join('')+`<div class="estrow total"><span>Итого</span><b class="mono">${Math.round(price.total)} ◇</b></div>`;
- $('checks').innerHTML=issues.length?issues.slice(0,12).map(i=>`<li><strong>${i.floor+1} этаж.</strong> ${i.message}</li>`).join(''):
- `<li class="fine">✓ Планы этажей и лестницы совместимы. Выступающие части обеспечены автоматическими колоннами.</li>`;
- if(issues.length>12)$('checks').innerHTML+=`<li>И ещё ${issues.length-12} замечаний.</li>`;
+ $('estimate').innerHTML=entries.map(([s,n])=>`<div class="estrow"><span>${s}</span><b class="mono">${Math.round(n)} ◇</b></div>`).join('')+
+   `<div class="estrow total"><span>Итого</span><b class="mono">${Math.round(price.total)} ◇</b></div>`+
+   (profile.budget!==null?`<div class="estrow"><span>Бюджет заказа</span><b class="mono">${profile.budget} ◇</b></div>`:'');
+ $('checks').innerHTML=careerIssues.length?careerIssues.slice(0,12).map(text=>`<li>${text}</li>`).join(''):
+ `<li class="fine">✓ Проект удовлетворяет требованиям ${mode==='free'?'геометрии':'заказчика'}.</li>`;
+ if(careerIssues.length>12)$('checks').innerHTML+=`<li>И ещё ${careerIssues.length-12} замечаний.</li>`;
  dims();drawPlan();volume();
 }
 function setFootprint(){
@@ -115,18 +171,18 @@ function setFootprint(){
  message('Габариты этажа изменены. Проверь лестницы и опоры.');
 }
 $('floors').addEventListener('click',e=>{const b=e.target.closest('[data-floor]');if(!b)return;active=+b.dataset.floor;start=null;paint();message('План этажа выбран. Нижний контур виден светлым пунктиром.')});
-$('tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]');if(!b)return;tool=b.dataset.tool;start=null;paint();message({partition:'Выбери две точки сетки для внутренней перегородки.',stairs:'Щёлкни точку для лестницы 2 × 3 м. Она соединяет этот этаж со следующим.',door:'Щёлкни метровый сегмент наружной стены или перегородки.',window:'Щёлкни метровый сегмент стены для окна.',erase:'Нажми на перегородку или дверной/оконный маркер, чтобы убрать.',inspect:'Осматривай план и объём справа.'}[tool])});
+$('tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]');if(!b||b.hidden||b.disabled)return;tool=b.dataset.tool;start=null;paint();message({partition:'Выбери две точки сетки для внутренней перегородки.',stairs:'Щёлкни точку для лестницы 2 × 3 м. Она соединяет этот этаж со следующим.',door:'Щёлкни метровый сегмент наружной стены или перегородки.',window:'Щёлкни метровый сегмент стены для окна.',erase:'Нажми на перегородку или дверной/оконный маркер, чтобы убрать.',inspect:'Осматривай план и объём справа.'}[tool])});
 $('plan').addEventListener('click',e=>{
  const t=e.target;
  const node=t.closest('[data-node]');const stairNode=t.closest('[data-stair-node]');const wallTarget=t.closest('[data-wall]');const partitionTarget=t.closest('[data-remove-wall]');
- if(node&&tool==='partition'){
+ if(node&&tool==='partition'&&profile.partitions){
   const pt=parseXY(node.dataset.node);if(!start){start=pt;message(`Первая точка (${pt.join(', ')}). Укажи вторую точку на той же вертикали или горизонтали.`);paint();return}
   const first=start;start=null;if(first[0]!==pt[0]&&first[1]!==pt[1]){message('Перегородка должна быть прямой: горизонталь или вертикаль.');paint();return}
   if(first[0]===pt[0]&&first[1]===pt[1]){paint();return}
   modify(()=>{const f=project.floors[active];f.partitions.push({id:`inner-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,a:first,b:pt})});
   const warnings=Engine.validate(project).filter(p=>p.floor===active&&p.kind==='partition');if(warnings.length)message(warnings[0].message);else message('Перегородка добавлена.');return;
  }
- if(stairNode&&tool==='stairs'){
+ if(stairNode&&tool==='stairs'&&profile.stairs){
   if(active===project.floors.length-1){message('Сначала добавь следующий этаж, затем выбери этот этаж и поставь лестницу.');return}
   const [x,z]=parseXY(stairNode.dataset.stairNode);modify(()=>project.floors[active].stairToNext={x,z,facing:$('stairFacing').value});message('Лестница обновлена. Если она не помещается на обоих этажах, появится предупреждение.');return;
  }
@@ -143,13 +199,13 @@ $('stairFacing').addEventListener('change',()=>{
  if(project.floors[active].stairToNext)modify(()=>project.floors[active].stairToNext.facing=$('stairFacing').value);
 });
 for(const id of ['x0','z0','w','d'])$(id).addEventListener('change',setFootprint);
-$('add').addEventListener('click',()=>{modify(()=>{const below=project.floors.length-1;project=Engine.addFloor(project);const r=rfloor(below);
+$('add').addEventListener('click',()=>{if(!profile.stairs||project.floors.length>=profile.maxFloors)return;modify(()=>{const below=project.floors.length-1;project=Engine.addFloor(project);const r=rfloor(below);
   if(r&&!project.floors[below].stairToNext)project.floors[below].stairToNext={x:r.x0,z:r.z0,facing:'north'};
   active=project.floors.length-1;start=null;});message('Новый этаж скопировал наружный контур. Уменьши его габариты и проверь лестницу.')});
-$('remove').addEventListener('click',()=>{if(project.floors.length<2)return;modify(()=>{project=Engine.removeTopFloor(project);active=Math.min(active,project.floors.length-1);start=null});message('Верхний этаж удалён.')});
+$('remove').addEventListener('click',()=>{if(!profile.stairs||project.floors.length<2)return;modify(()=>{project=Engine.removeTopFloor(project);active=Math.min(active,project.floors.length-1);start=null});message('Верхний этаж удалён.')});
 $('undo').addEventListener('click',()=>{if(!past.length)return;future.push(deep(project));project=past.pop();active=Math.min(active,project.floors.length-1);start=null;save();paint();message('Последнее действие отменено.')});
 $('redo').addEventListener('click',()=>{if(!future.length)return;past.push(deep(project));project=future.pop();active=Math.min(active,project.floors.length-1);start=null;save();paint();message('Действие повторено.')});
-$('reset').addEventListener('click',()=>{if(confirm('Создать новый проект? Текущий эскиз будет удалён.')){modify(()=>{project={floors:[rectFloor(1,1,8,7,0)]};active=0;start=null});message('Создан новый проект.') }});
+$('reset').addEventListener('click',()=>{if(confirm('Создать новый проект? Текущий эскиз будет удалён.')){modify(()=>{project={floors:[deep(starter)]};active=0;start=null});message('Создан новый проект.') }});
 $('import').addEventListener('click', () => $('importFile').click());
 $('importFile').addEventListener('change', async event => {
   const file = event.target.files?.[0];
@@ -183,15 +239,27 @@ $('roofSwitch').addEventListener('click',()=>{showRoof=!showRoof;$('roofSwitch')
 $('cutaway').addEventListener('click',()=>{cutaway=!cutaway;$('cutaway').setAttribute('aria-pressed',String(cutaway));$('cutaway').textContent=cutaway?'Срез: да':'Срез: нет';volume()});
 $('export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({format:'avi-architect-multistorey',version:1,...project},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='avi-architect-multistorey.json';a.click();URL.revokeObjectURL(url);toast('План экспортирован в JSON.')});
 $('publish').addEventListener('click',()=>{
+  const errors=builderIssues(project,mode);
+  if(errors.length){message(errors[0]);paint();return;}
   const city=loadCity();
-  if(!city){message('Сначала начни игру в городе и выполни заказы Эммы и Льва.');return;}
+  if(!city){message('Сначала начни игру в городе и прими заказ.');return;}
   try {
+    if(mode==='home'||mode==='bakery'){
+      if(!city.accepted||currentQuest(city)!==mode)
+        throw Error('Сначала прими соответствующий заказ в городе.');
+      const finished=complete(city,commissionModel(project,mode));
+      finished.careerPlans={...city.careerPlans,[mode]:deep(project)};
+      if(!saveCity(finished))throw Error('Не удалось сохранить построенный дом.');
+      window.location.assign(new URL(`./?finished=${mode}`,document.baseURI).href);
+      return;
+    }
+    if(mode==='landmark' && (!city.buildings.home || !city.buildings.bakery))
+      throw Error('Сначала заверши первые два заказа.');
     const next=publishLandmark(city,project);
     if(city.landmark&&!confirm('Заменить ранее построенный дом Ники новым проектом?'))return;
-    if(!saveCity(next))throw Error('Не удалось сохранить дом: проверь доступность хранилища браузера.');
-    // The workshop draft is independent and remains editable.
+    if(!saveCity(next))throw Error('Не удалось сохранить дом в городе.');
     window.location.assign(new URL('./?city=1',document.baseURI).href);
-  }catch(error){message(error.message||'Исправь план перед размещением в городе.');}
+  }catch(error){message(error.message||'Исправь план перед сдачей заказа.');}
 });
 paint();
 })();
