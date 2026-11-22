@@ -10,7 +10,10 @@ export type OpeningKind = 'door' | 'window'
 
 export interface Wall { id: string; a: Point; b: Point }
 export interface Opening { wallId: string; offset: number; kind: OpeningKind }
-export interface Staircase { x: number; z: number; facing: Facing }
+/** One grid cell for a spiral stair; two cells for an ordinary straight flight. */
+export type StairKind = 'spiral' | 'straight'
+export interface Staircase { x: number; z: number; facing: Facing; kind?: StairKind }
+export interface OpeningRun { wallId: string; kind: OpeningKind; offset: number; width: number }
 export interface FloorPlan {
   walls: Wall[]
   openings: Opening[]
@@ -34,6 +37,9 @@ export interface Column {
   fromY: number
   toY: number
 }
+export interface OverhangSection extends Rect {
+  upperFloor: number
+}
 export interface RoofSection extends Rect {
   /** 0-based floor above which this section is placed. */
   floor: number
@@ -52,14 +58,14 @@ export interface Estimate {
 }
 
 export const STOREY_HEIGHT = 3.2
-export const STAIR_WIDTH = 2
-export const STAIR_LENGTH = 3
+export const STAIR_WIDTH = 1
+export const STAIR_LENGTH = 2
 export const COLUMN_SPACING = 3
 export const GRID = { width: 12, depth: 10 } as const
 export const BUILD_PRICES = {
   wallPerMetre: 12, partitionPerMetre: 8, door: 45, window: 30,
   slabPerSquareMetre: 4, roofPerSquareMetre: 3, stair: 135,
-  columnPerMetre: 22,
+  columnPerMetre: 22, spiralStair: 165,
 } as const
 
 const integer = (n: number) => Number.isSafeInteger(n)
@@ -94,9 +100,39 @@ export function footprint(floor: FloorPlan): Rect | null {
 
 export function stairRect(stair: Staircase): Rect {
   const eastWest = stair.facing === 'east' || stair.facing === 'west'
-  const w = eastWest ? STAIR_LENGTH : STAIR_WIDTH
-  const d = eastWest ? STAIR_WIDTH : STAIR_LENGTH
+  const spiral = stair.kind === 'spiral'
+  const w = spiral ? 1 : eastWest ? STAIR_LENGTH : STAIR_WIDTH
+  const d = spiral ? 1 : eastWest ? STAIR_WIDTH : STAIR_LENGTH
   return {x0:stair.x,z0:stair.z,x1:stair.x+w,z1:stair.z+d}
+}
+
+/**
+ * Adjacent equal openings become one architectural object, not several windows.
+ * Opposing wall directions are handled by measuring offsets from wall.a.
+ */
+export function openingRuns(wall: Wall, openings: readonly Opening[]): OpeningRun[] {
+  const sorted=openings.filter(o=>o.wallId===wall.id)
+    .sort((a,b)=>a.offset-b.offset)
+  const runs:OpeningRun[]=[]
+  for(const o of sorted){
+    const last=runs.at(-1)
+    if(last && last.kind===o.kind && o.offset===last.offset+last.width)last.width++
+    else runs.push({wallId:wall.id,kind:o.kind,offset:o.offset,width:1})
+  }
+  return runs
+}
+
+/** Uncovered upper-storey floor strips, visible as supported, raised mansard wings. */
+export function overhangs(plan: MultiStoreyPlan): OverhangSection[] {
+  const result:OverhangSection[]=[]
+  for(let index=1;index<plan.floors.length;index++){
+    const upper=footprint(plan.floors[index])
+    const lower=footprint(plan.floors[index-1])
+    if(!upper||!lower)continue
+    for(const part of subtractRect(upper,lower))
+      result.push({...part,upperFloor:index})
+  }
+  return result
 }
 
 export function overlap(a:Rect,b:Rect):Rect|null {
@@ -158,10 +194,10 @@ function axisPoints(a:number,b:number):number[] {
  */
 export function columns(plan:MultiStoreyPlan):Column[] {
   const output=new Map<string,Column>()
-  for(let upperFloor=1;upperFloor<plan.floors.length;upperFloor++){
-    const upper=footprint(plan.floors[upperFloor]),below=footprint(plan.floors[upperFloor-1])
-    if(!upper||!below)continue
-    for(const strip of subtractRect(upper,below)){
+  for(const strip of overhangs(plan)){
+    const upperFloor=strip.upperFloor
+    const below=footprint(plan.floors[upperFloor-1])!
+    {
       for(const x of axisPoints(strip.x0,strip.x1))for(const z of axisPoints(strip.z0,strip.z1)){
         if(includes(below,x,z))continue
         let groundedOn=-1
@@ -238,10 +274,11 @@ export function validate(plan:MultiStoreyPlan):BuildingIssue[] {
         issues.push({floor:i+1,kind:'support',message:'Верхний этаж должен пересекаться с нижним для лестничного прохода.'})
       if(!stair||!integer(stair.x)||!integer(stair.z)||
          !['north','south','east','west'].includes(stair.facing)||
+         (stair.kind !== undefined && stair.kind !== 'spiral' && stair.kind !== 'straight')||
          !upper||!insideRect(r,stairRect(stair))||!insideRect(upper,stairRect(stair))||
          floor.partitions.some(w=>intersectsStairInterior(w,stairRect(stair)))||
          plan.floors[i+1].partitions.some(w=>intersectsStairInterior(w,stairRect(stair)))){
-        issues.push({floor:i,kind:'stairs',message:`Лестница между этажами ${i+1} и ${i+2} должна быть внутри обоих планов (2 × 3 м) и не пересекать перегородки.`})
+        issues.push({floor:i,kind:'stairs',message:`Лестница между этажами ${i+1} и ${i+2} должна находиться внутри обоих планов (винтовая — 1 клетка, обычная — 2 клетки) и не пересекать перегородки.`})
       }
     }else if(floor.stairToNext!==null){
       issues.push({floor:i,kind:'stairs',message:'На последнем этаже лестница вверх не нужна.'})
@@ -257,7 +294,7 @@ export function estimate(plan:MultiStoreyPlan):Estimate {
     partitions+=floor.partitions.reduce((v,w)=>v+wallLength(w),0)*BUILD_PRICES.partitionPerMetre
     openings+=floor.openings.reduce((v,o)=>v+BUILD_PRICES[o.kind],0)
     slabs+=rectangleArea(footprint(floor)??{x0:0,z0:0,x1:0,z1:0})*BUILD_PRICES.slabPerSquareMetre
-    if(floor.stairToNext)stairs+=BUILD_PRICES.stair
+    if(floor.stairToNext)stairs+=floor.stairToNext.kind==='spiral'?BUILD_PRICES.spiralStair:BUILD_PRICES.stair
   }
   const columnCost=columns(plan).reduce((v,c)=>v+(c.toY-c.fromY)*BUILD_PRICES.columnPerMetre,0)
   const roofCost=roofs(plan).reduce((v,r)=>v+rectangleArea(r)*BUILD_PRICES.roofPerSquareMetre,0)
