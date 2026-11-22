@@ -1,0 +1,6 @@
+asset_id,source_type,source,license,credit,file_path,modifications,verified
+gaudi,photograph,https://commons.wikimedia.org/wiki/File:Exterior_de_la_Casa_Batll%C3%B3_-_2026_-_01.jpg,CC BY 4.0,ProtoplasmaKid,public/architecture/gaudi.jpg,thumbnail max width 800,2026-11-22
+shukhov,photograph,https://commons.wikimedia.org/wiki/File:Shukhov_Tower_photo_by_Maxim_Fedorov_(1).JPG,public domain,Maxim Fedorov,public/architecture/shukhov.jpg,thumbnail max width 800,2026-11-22
+fallingwater,photograph,https://commons.wikimedia.org/wiki/File:Fallingwater%2C_Pennsylvania.jpg,CC BY-SA 4.0,Euelbenul,public/architecture/fallingwater.jpg,thumbnail max width 800,2026-11-22
+pantheon,photograph,https://commons.wikimedia.org/wiki/File:Pantheon_(Rome)_-_Exterior_01.jpg,CC BY-SA 4.0,John Samuel,public/architecture/pantheon.jpg,thumbnail max width 800,2026-11-22
+brunelleschi,photograph,https://commons.wikimedia.org/wiki/File:Cathedral_of_Santa_Maria_del_Fiore%2C_Firenze%2C_Italy_(Unsplash).jpg,CC0 1.0,Ilya Orehov,public/architecture/brunelleschi.jpg,thumbnail max width 800,2026-11-22

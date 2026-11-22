@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Купол собора Флоренции">
+<defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#cee6db"/><stop offset="1" stop-color="#f6e4bc"/></linearGradient>
+<linearGradient id="stone" x2="1" y2="1"><stop stop-color="#f2d7af"/><stop offset="1" stop-color="#cc9e79"/></linearGradient></defs>
+<rect width="800" height="500" fill="url(#sky)"/>
+<path d="M0 403q75-74 134-35t117-20q86-31 143 8t120-16q104-35 182 16t104 10v135H0Z" fill="#bdc4a7"/>
+<rect x="176" y="253" width="451" height="212" fill="#e5ceab" stroke="#a99983" stroke-width="7"/>
+<rect x="203" y="295" width="21" height="43" rx="10" fill="#789493" stroke="#c6b899" stroke-width="4"/><rect x="247" y="295" width="21" height="43" rx="10" fill="#789493" stroke="#c6b899" stroke-width="4"/><rect x="291" y="295" width="21" height="43" rx="10" fill="#789493" stroke="#c6b899" stroke-width="4"/><rect x="335" y="295" width="21" height="43" rx="10" fill="#789493" stroke="#c6b899" stroke-width="4"/><rect x="379" y="295" width="21" height="43" rx="10" fill="#789493" stroke="#c6b899" stroke-width="4"/><rect x="423" y="295" width="21" height="43" rx="10" fill="#789493" stroke="#c6b899" stroke-width="4"/><rect x="467" y="295" width="21" height="43" rx="10" fill="#789493" stroke="#c6b899" stroke-width="4"/><rect x="511" y="295" width="21" height="43" rx="10" fill="#789493" stroke="#c6b899" stroke-width="4"/><rect x="555" y="295" width="21" height="43" rx="10" fill="#789493" stroke="#c6b899" stroke-width="4"/>
+<path d="M227 256C240 110 324 56 407 62C499 67 561 125 573 256Z" fill="#bc6246" stroke="#e4c19b" stroke-width="12"/>
+<path d="M407 62Q254 159 227 254" fill="none" stroke="#e5a17c" stroke-width="9"/><path d="M407 62Q344 159 342 254" fill="none" stroke="#e5a17c" stroke-width="9"/><path d="M407 62Q434 159 457 254" fill="none" stroke="#e5a17c" stroke-width="9"/><path d="M407 62Q524 159 572 254" fill="none" stroke="#e5a17c" stroke-width="9"/>
+<rect x="379" y="22" width="56" height="45" fill="#e8d4b2" stroke="#a88d72" stroke-width="5"/>
+<path d="M396 22V3h23v19" fill="#e8d4b2"/><path d="M200 463h450" stroke="#8b887b" stroke-width="12"/>
+<rect x="0" y="463" width="800" height="37" fill="#8aa78a"/></svg>
