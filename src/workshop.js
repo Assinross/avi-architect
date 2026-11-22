@@ -179,6 +179,16 @@ function drawPlan(){
   if(tool==='stairs'){for(let x=0;x<=12;x++)for(let z=0;z<=10;z++)items.push(`<circle cx="${px(x)}" cy="${py(z)}" r="12" fill="transparent" class="cell" data-stair-node="${x},${z}"/>`)}
   else for(let x=0;x<=12;x++)for(let z=0;z<=10;z++)items.push(`<circle cx="${px(x)}" cy="${py(z)}" r="${start&&start[0]===x&&start[1]===z?6:3}" class="node" data-node="${x},${z}"/>`)
  }
+ if(gesture&&(gesture.kind==='new-partition'||gesture.kind==='outline')&&gesture.moved){
+   const a=gesture.origin,b=gesture.current;
+   if(gesture.kind==='new-partition'){
+     const end=Math.abs(b[0]-a[0])>=Math.abs(b[1]-a[1])?[b[0],a[1]]:[a[0],b[1]];
+     items.push(`<line data-ghost="true" x1="${px(a[0])}" y1="${py(a[1])}" x2="${px(end[0])}" y2="${py(end[1])}"/>`);
+   }else{
+     const x0=Math.min(a[0],b[0]),z0=Math.min(a[1],b[1]);
+     items.push(`<rect data-ghost="true" x="${px(x0)}" y="${py(z0)}" width="${Math.abs(b[0]-a[0])*cell}" height="${Math.abs(b[1]-a[1])*cell}" fill="none"/>`);
+   }
+ }
  $('plan').innerHTML=items.join('')
 }
 function paint(){
@@ -213,7 +223,150 @@ function setFootprint(){
 }
 $('floors').addEventListener('click',e=>{const b=e.target.closest('[data-floor]');if(!b)return;active=+b.dataset.floor;start=null;paint();message('План этажа выбран. Нижний контур виден светлым пунктиром.')});
 $('tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]');if(!b||b.hidden||b.disabled)return;tool=b.dataset.tool;start=null;paint();message({outline:'Потяни от первого угла комнаты до противоположного: все четыре внешние стены подстроятся.',partition:'Нажми и тяни, чтобы нарисовать прямую стену. Можно также выбрать две точки по очереди.',stairs:'Выбери тип лестницы, затем начальную клетку.',door:'Нажми на метровый участок стены.',window:'Нажми на метровый участок стены; соседние окна объединятся.',erase:'Нажми на элемент для удаления.',inspect:'Тяни внешнюю стену, перегородку, её конец, окно, лестницу или всю комнату. Esc отменяет перетаскивание.'}[tool])});
+
+/**
+ * One pointer gesture = one undo step, for mouse, pen and touch.
+ * Keep capture on the stable <svg> root so rerendering handles during a drag
+ * cannot lose pointermove/pointerup.
+ */
+const planSvg=$('plan');
+let gesture=null;
+let suppressClick=false;
+function gridPoint(event){
+ const matrix=planSvg.getScreenCTM();
+ if(!matrix)return null;
+ const pointer=planSvg.createSVGPoint();
+ pointer.x=event.clientX;pointer.y=event.clientY;
+ const local=pointer.matrixTransform(matrix.inverse());
+ return [
+  Math.max(0,Math.min(Engine.GRID.width,Math.round((local.x-bx)/cell))),
+  Math.max(0,Math.min(Engine.GRID.depth,Math.round((local.y-by)/cell)))
+ ];
+}
+function cancelGesture(){
+ if(!gesture)return;
+ project=gesture.before;
+ gesture=null;
+ $('planDrawing').classList.remove('dragging');
+ paint();
+ message('Перетаскивание отменено.');
+}
+function finishGesture(){
+ if(!gesture)return;
+ const g=gesture;
+ gesture=null;
+ $('planDrawing').classList.remove('dragging');
+ if(g.moved){
+   suppressClick=true;
+   // Some browsers omit click after a pointer capture/drag.
+   window.setTimeout(()=>{suppressClick=false},200);
+ }
+ if(g.changed){
+   past.push(g.before);if(past.length>80)past.shift();
+   future=[];
+   start=null;
+   save();paint();
+   message(g.kind==='edge'?'Комната растянута: четыре стены остались соединены.':
+     g.kind==='new-partition'?'Стена создана.':
+     g.kind==='outline'?'Контур комнаты перестроен.':'Элемент перемещён. Для отмены нажми ↶.');
+ }else{
+   project=g.before;
+   paint();
+   if(g.moved)message('Дальше переместить нельзя: границы участка, стены или проёмы не позволяют.');
+ }
+}
+planSvg.addEventListener('pointerdown',event=>{
+ if(gesture||(event.pointerType==='mouse'&&event.button!==0))return;
+ const target=event.target instanceof Element?event.target:null;
+ const point=gridPoint(event);
+ if(!target||!point)return;
+ let kind=null,id=null,part=null,runOffset=null,runWidth=null;
+ if(tool==='partition'&&profile.partitions)kind='new-partition';
+ else if(tool==='outline')kind='outline';
+ else if(tool==='inspect'){
+   const opening=target.closest('[data-drag-opening]');
+   const endpoint=target.closest('[data-drag-end]');
+   const exterior=target.closest('[data-drag-edge]');
+   const partition=target.closest('[data-drag-partition]');
+   if(opening){
+     kind='opening';id=opening.dataset.dragOpening;
+     runOffset=Number(opening.dataset.runOffset);runWidth=Number(opening.dataset.runWidth);
+   }else if(endpoint){
+     kind='partition-end';id=endpoint.dataset.dragEnd;part=endpoint.dataset.end;
+   }else if(partition){kind='partition';id=partition.dataset.dragPartition}
+   else if(exterior){kind='edge';id=exterior.dataset.dragEdge}
+   else if(target.closest('[data-stair]')&&project.floors[active].stairToNext)kind='stair';
+   else if(target.closest('[data-drag-room]'))kind='room';
+ }
+ if(!kind)return;
+ gesture={pointerId:event.pointerId,kind,id,part,runOffset,runWidth,
+   floor:active,origin:point,current:point,before:deep(project),
+   moved:false,changed:false,
+   newId:'inner-'+Date.now()+'-'+Math.random().toString(36).slice(2,7)};
+ planSvg.setPointerCapture(event.pointerId);
+ $('planDrawing').classList.add('dragging');
+});
+planSvg.addEventListener('pointermove',event=>{
+ const g=gesture;
+ if(!g||g.pointerId!==event.pointerId)return;
+ const point=gridPoint(event);
+ if(!point||point[0]===g.current[0]&&point[1]===g.current[1])return;
+ g.current=point;
+ if(point[0]!==g.origin[0]||point[1]!==g.origin[1])g.moved=true;
+ const dx=point[0]-g.origin[0],dz=point[1]-g.origin[1];
+ const floor=g.before.floors[g.floor];
+ let next=null;
+ switch(g.kind){
+   case 'edge':{
+     const w=floor.walls.find(w=>w.id===g.id);
+     if(w)next=Gestures.dragExteriorWall(floor,g.id,w.a[0]===w.b[0]?point[0]:point[1]);
+     break;
+   }
+   case 'room':next=Gestures.dragRoom(floor,dx,dz);break;
+   case 'partition':next=Gestures.dragPartition(floor,g.id,dx,dz);break;
+   case 'partition-end':next=Gestures.dragPartitionEnd(floor,g.id,g.part,point);break;
+   case 'stair':next=Gestures.dragStaircase(floor,dx,dz);break;
+   case 'opening':{
+     const w=[...floor.walls,...floor.partitions].find(w=>w.id===g.id);
+     if(w){
+       const axis=w.a[0]===w.b[0]?1:0;
+       const direction=Math.sign(w.b[axis]-w.a[axis]);
+       const nextOffset=g.runOffset+(axis===0?dx:dz)*direction;
+       next=Gestures.dragOpeningRun(floor,g.id,g.runOffset,g.runWidth,nextOffset);
+     }
+     break;
+   }
+   case 'new-partition':{
+     // CAD-style orthogonal snapping keeps every wall perfectly straight.
+     const end=Math.abs(dx)>=Math.abs(dz)?
+       [point[0],g.origin[1]]:[g.origin[0],point[1]];
+     next=Gestures.drawPartition(floor,g.origin,end,g.newId);
+     break;
+   }
+   case 'outline':next=Gestures.dragFootprint(floor,g.origin,point);break;
+ }
+ if(!next){
+   // A rejected preview never corrupts the last valid state.
+   return;
+ }
+ project=deep(g.before);
+ project.floors[g.floor]=next;
+ g.changed=JSON.stringify(next)!==JSON.stringify(floor);
+ drawPlan();
+ // Only a snapped grid change rebuilds the 3D mesh, not every mouse pixel.
+ volume();
+});
+planSvg.addEventListener('pointerup',event=>{
+ if(gesture?.pointerId===event.pointerId)finishGesture();
+});
+planSvg.addEventListener('pointercancel',event=>{
+ if(gesture?.pointerId===event.pointerId)cancelGesture();
+});
+window.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&gesture){event.preventDefault();cancelGesture();}
+});
 $('plan').addEventListener('click',e=>{
+ if(suppressClick){suppressClick=false;return}
  const t=e.target;
  const node=t.closest('[data-node]');const stairNode=t.closest('[data-stair-node]');const wallTarget=t.closest('[data-wall]');const partitionTarget=t.closest('[data-remove-wall]');
  if(node&&tool==='outline'){
