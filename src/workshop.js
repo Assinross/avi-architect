@@ -1,5 +1,7 @@
 import * as Engine from './multistorey';
 import { MultiStoreyView } from './rendering/multistorey';
+import { load as loadCity, save as saveCity } from './storage';
+import { publishLandmark } from './city-landmark';
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
@@ -180,5 +182,16 @@ $('fromCity').addEventListener('click', () => {
 $('roofSwitch').addEventListener('click',()=>{showRoof=!showRoof;$('roofSwitch').textContent=showRoof?'Крыша: да':'Крыша: нет';volume()});
 $('cutaway').addEventListener('click',()=>{cutaway=!cutaway;$('cutaway').setAttribute('aria-pressed',String(cutaway));$('cutaway').textContent=cutaway?'Срез: да':'Срез: нет';volume()});
 $('export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({format:'avi-architect-multistorey',version:1,...project},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='avi-architect-multistorey.json';a.click();URL.revokeObjectURL(url);toast('План экспортирован в JSON.')});
+$('publish').addEventListener('click',()=>{
+  const city=loadCity();
+  if(!city){message('Сначала начни игру в городе и выполни заказы Эммы и Льва.');return;}
+  try {
+    const next=publishLandmark(city,project);
+    if(city.landmark&&!confirm('Заменить ранее построенный дом Ники новым проектом?'))return;
+    if(!saveCity(next))throw Error('Не удалось сохранить дом: проверь доступность хранилища браузера.');
+    // The workshop draft is independent and remains editable.
+    window.location.assign(new URL('./?city=1',document.baseURI).href);
+  }catch(error){message(error.message||'Исправь план перед размещением в городе.');}
+});
 paint();
 })();
