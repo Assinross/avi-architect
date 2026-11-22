@@ -15,30 +15,29 @@ function building(purpose:Purpose) {
 function prepared() {
   const first=complete({...freshWorld(),accepted:true},building('home'))
   const finished=complete({...first,accepted:true},building('bakery'))
-  const {landmark:unused,...oldWorld}=finished
-  void unused
+  const city=finished
   const project=addFloor(fromLegacy(building('home')))
   project.floors[0].stairToNext={x:1,z:1,facing:'south'}
   expect(validate(project)).toEqual([])
-  return {oldWorld,project}
+  return {city,project}
 }
 
 test('Город сохраняет и отображает многоэтажный дом Ники после публикации',async({page})=>{
   const errors:string[]=[]
   page.on('pageerror',e=>errors.push(e.message))
-  const {oldWorld,project}=prepared()
+  const {city,project}=prepared()
   await page.goto('./')
-  await page.evaluate(({oldWorld,project,saveKey})=>{
-    localStorage.setItem(saveKey,JSON.stringify({version:1,world:oldWorld}))
+  await page.evaluate(({city,project,saveKey})=>{
+    localStorage.setItem(saveKey,JSON.stringify({version:3,world:city}))
     localStorage.setItem('avi-architect.multistorey-workshop.v1',JSON.stringify(project))
-  },{oldWorld,project,saveKey})
+  },{city,project,saveKey})
   await page.goto('./workshop.html')
   await expect(page.locator('#publish')).toBeVisible()
   await page.locator('#publish').click()
   await page.waitForURL(/\?city=1/)
   await expect(page.locator('.sheet')).toContainText('дом Ники готов')
   const persisted=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!),saveKey)
-  expect(persisted.version).toBe(2)
+  expect(persisted.version).toBe(3)
   expect(persisted.world.landmark).toEqual(project)
   expect(persisted.world.rewards).toBe(3)
   await page.reload()

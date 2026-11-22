@@ -1,89 +1,104 @@
-import { test, expect, type Page } from '@playwright/test'
-import { saveKey } from '../../src/storage'
-import type { CityWorld } from '../../src/model'
+import {test,expect,type Page} from '@playwright/test'
+import {saveKey} from '../../src/storage'
+import type {CityWorld} from '../../src/model'
 
-// Модалка стоит в конце документа, поэтому её кнопка с тем же действием идёт последней.
-const action=(p:Page,name:string)=>p.locator('[data-action="'+name+'"]').last()
-const editor=(p:Page,name:string)=>p.locator('[data-editor-action="'+name+'"]')
-const world=(p:Page):Promise<CityWorld>=>p.evaluate(key=>JSON.parse(localStorage.getItem(key)!).world,saveKey)
+const action=(page:Page,name:string)=>page.locator('[data-action="'+name+'"]').last()
+const world=(page:Page):Promise<CityWorld>=>
+  page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).world,saveKey)
 
-test('Два заказа, редактирование, награды и возвращение в город',async({page})=>{
+async function openings(page:Page,numberOfWindows:number,requireValid=true) {
+  await page.locator('[data-tool="door"]').click()
+  await page.locator('[data-wall="f0a"][data-offset="0.5"]').click()
+  await page.locator('[data-tool="window"]').click()
+  for(let i=0;i<numberOfWindows;i++)
+    await page.locator(`[data-wall="f0a"][data-offset="${i*2+1.5}"]`).click()
+  if(requireValid)await expect(page.locator('#careerChecks .fine')).toBeVisible()
+}
+
+test('Общая мастерская: карьерные открытия, три проекта и заселение города',async({page})=>{
   const errors:string[]=[]
   page.on('pageerror',e=>errors.push(e.message))
   await page.goto('./')
   await expect(action(page,'continue')).toBeDisabled()
-  await action(page,'themes').click()
-  await action(page,'theme-1').click()
-  await page.getByRole('button',{name:'Готово'}).click()
   await action(page,'new').click()
-  for(const purpose of ['home','bakery'] as const){
-    await action(page,'order').click()
-    await action(page,'accept').click()
-    await action(page,'edit').click()
-    // Design two different footprints and place openings via the same visible tools as a player.
-    const right=purpose==='home'?6:8
-    for(const node of ['2,2',right+',2',right+',6','2,6','2,2'])
-      await page.locator('[data-node="'+node+'"]').click()
-    if(purpose==='home'){
-      await editor(page,'preview').click()
-      await action(page,'submit').click()
-      await expect(page.getByRole('dialog')).toContainText(/двер/i)
-      await action(page,'edit').click()
-    }
-    await page.locator('[data-tool="door"]').click()
-    await page.locator('[data-slot="2.5,2"]').click()
-    await page.locator('[data-tool="window"]').click()
-    await page.locator('[data-slot="4.5,2"]').click()
-    await editor(page,'undo').click()
-    await editor(page,'redo').click()
-    if(purpose==='bakery')await page.locator('[data-slot="5.5,2"]').click()
-    const model=(await world(page)).draft
-    await editor(page,'preview').click()
-    await action(page,'roof').click()
-    if(purpose==='home'){
-      await action(page,'settings').click()
-      await action(page,'themes').click()
-      await action(page,'theme-0').click()
-      await action(page,'close').click()
-      await expect(action(page,'roof')).toHaveText('Показать крышу')
-    }
-    expect((await world(page)).draft).toEqual(model)
-    await action(page,'submit').click()
-    await expect(page.locator('.sheet')).toContainText('Заказ выполнен')
-    expect((await world(page)).buildings[purpose]).toEqual(model)
-    await action(page,'city').click()
-  }
+
+  // Chapter 1: the same editor, with walls/windows, no partitions or second floor.
+  await action(page,'order').click()
+  await action(page,'accept').click()
+  await action(page,'edit').click()
+  await expect(page).toHaveURL(/mode=career&quest=home/)
+  await expect(page.locator('#mainHeading')).toContainText('Эммы')
+  await expect(page.locator('#add')).toBeDisabled()
+  await expect(page.locator('[data-tool="partition"]')).toBeHidden()
+  await expect(page.locator('[data-tool="stairs"]')).toBeHidden()
+  await expect(page.locator('.preview-panel')).toBeHidden()
+  await openings(page,1)
+  await page.locator('#publish').click()
+  await page.waitForURL(/finished=home/)
+  await expect(page.locator('.sheet')).toContainText('Заказ выполнен')
+  expect((await world(page)).careerPlans.home?.floors).toHaveLength(1)
+  await action(page,'city').click()
+
+  // Chapter 2: the editor unlocks room partitions, but not stairs.
+  await action(page,'order').click()
+  await action(page,'accept').click()
+  await action(page,'edit').click()
+  await expect(page).toHaveURL(/mode=career&quest=bakery/)
+  await expect(page.locator('#add')).toBeDisabled()
+  await expect(page.locator('[data-tool="partition"]')).toBeVisible()
+  await expect(page.locator('[data-tool="stairs"]')).toBeHidden()
+  await page.locator('[data-tool="partition"]').click()
+  await page.locator('[data-node="4,3"]').click()
+  await page.locator('[data-node="4,5"]').click()
+  await expect(page.locator('.partition')).toHaveCount(1)
+  await openings(page,2)
+  await page.locator('#previewToggle').click()
+  await expect(page.locator('.preview-panel')).toBeVisible()
+  await expect(page.locator('#volume canvas')).toBeVisible()
+  await page.locator('#publish').click()
+  await page.waitForURL(/finished=bakery/)
+  await expect(page.locator('.sheet')).toContainText('Заказ выполнен')
+  expect((await world(page)).careerPlans.bakery?.floors[0].partitions).toHaveLength(1)
+  await action(page,'city').click()
+
+  // Chapter 3: stairs and multiple floors unlock for Nika's commission.
   await expect(page.locator('.sheet')).toContainText('Долина ожила')
-  const before=await world(page)
-  expect(before.rewards).toBe(3)
+  await action(page,'nika').click()
+  await expect(page).toHaveURL(/mode=career&quest=landmark/)
+  await expect(page.locator('#add')).toBeEnabled()
+  await expect(page.locator('[data-tool="stairs"]')).toBeVisible()
+  await openings(page,2,false)
+  await page.locator('#add').click()
+  await expect(page.locator('#floorStat')).toHaveText('2')
+  await expect(page.locator('#careerChecks .fine')).toBeVisible()
+  await page.locator('#publish').click()
+  await page.waitForURL(/\?city=1/)
+  await expect(page.locator('.sheet')).toContainText('дом Ники готов')
+  const city=await world(page)
+  expect(city.rewards).toBe(3)
+  expect(city.landmark?.floors).toHaveLength(2)
+  expect(city.careerPlans.home?.floors).toHaveLength(1)
+  expect(city.careerPlans.bakery?.floors[0].partitions).toHaveLength(1)
   await page.reload()
-  await action(page,'continue').click()
-  await expect(page.locator('.status-pill')).toHaveText('Построено · 2 / 2')
-  expect(await world(page)).toEqual(before)
-  await action(page,'journal').click()
-  await expect(page.getByText('Выполнен',{exact:true})).toHaveCount(2)
+  await expect(page.locator('.sheet')).toContainText('Ника поселилась')
   expect(errors).toEqual([])
 })
 
-test.describe('Сенсорный планшет',()=>{
+test.describe('Планшет',()=>{
   test.use({viewport:{width:768,height:1024},hasTouch:true,isMobile:true})
-  test('Чертёж восстанавливается после перезагрузки. Сброс требует подтверждения',async({page})=>{
-    await page.goto('./')
-    for(const name of ['new','order','accept','edit'])await action(page,name).tap()
-    for(const node of ['1,1','5,1'])await page.locator('[data-node="'+node+'"]').tap()
-    const before=(await world(page)).draft
-    expect(before?.walls).toHaveLength(1)
-    await page.reload()
-    for(const name of ['continue','plot','edit'])await action(page,name).tap()
-    expect((await world(page)).draft).toEqual(before)
-    await editor(page,'city').tap()
-    await action(page,'settings').tap()
-    await action(page,'reset').tap()
-    await page.getByRole('button',{name:'Отмена'}).tap()
-    expect((await world(page)).draft).toEqual(before)
-    await action(page,'settings').tap()
-    await action(page,'reset').tap()
-    await action(page,'confirm-reset').tap()
-    await expect(action(page,'continue')).toBeDisabled()
+  test('В карьере 3D включается по желанию; в свободном режиме показывается сразу',async({page})=>{
+    // The career tool palette is independent of the expensive city scene boot.
+    await page.goto('./workshop.html?mode=career&quest=home')
+    await expect(page.locator('#mainHeading')).toContainText('Эммы')
+    await expect(page.locator('.preview-panel')).toBeHidden()
+    await page.locator('#previewToggle').tap()
+    await expect(page.locator('#volume canvas')).toBeVisible()
+    await page.locator('#previewToggle').tap()
+    await expect(page.locator('.preview-panel')).toBeHidden()
+    await page.goto('./workshop.html')
+    await expect(page.locator('.preview-panel')).toBeVisible()
+    await expect(page.locator('#volume canvas')).toBeVisible()
+    await expect(page.locator('#add')).toBeEnabled()
+    await expect(page.locator('[data-tool="stairs"]')).toBeVisible()
   })
 })

@@ -152,7 +152,7 @@ describe('Прогресс и сохранения', () => {
       {...base, accepted:true, draft:{...home, walls:[...home.walls, home.walls[0]]}},
       {...base, accepted:true, draft:{...home, walls:[{id:'x',a:[13,0],b:[13,3]}]}},
       {...base, buildings:{home:newModel('home')}, rewards:1},
-    ]) expect(decode(JSON.stringify({version:1,world}))).toBeNull()
+    ]) expect(decode(JSON.stringify({version:3,world}))).toBeNull()
   })
 
   it('обрабатывает недоступное хранилище и ошибки квоты', () => {

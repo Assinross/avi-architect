@@ -2,9 +2,9 @@ import { isBuildingModel, isRecord, issues, rules, type CityWorld } from './mode
 import { isCityLandmark } from './city-landmark'
 
 export const saveKey = 'architects-of-time.valley'
-const version = 2
+const version = 3
 
-function validWorld(value: unknown, versionTwo = false): value is CityWorld {
+function validWorld(value: unknown): value is CityWorld {
   if (!isRecord(value) || !isRecord(value.buildings) ||
       ![0, 1, 2, 3].some(theme => value.theme === theme) ||
       !['auto', 'low', 'high'].some(quality => value.quality === quality) ||
@@ -24,20 +24,24 @@ function validWorld(value: unknown, versionTwo = false): value is CityWorld {
     value.accepted && isBuildingModel(value.draft) && value.draft.purpose === quest
   )
   if (!validDraft) return false
-  if (!versionTwo) return true // Legacy saves had no multi-storey field.
-  return Object.prototype.hasOwnProperty.call(value, 'landmark') &&
-    (value.landmark === null || isCityLandmark(value.landmark)) &&
-    (!value.landmark || Boolean(value.buildings.home && value.buildings.bakery))
+  if (!Object.prototype.hasOwnProperty.call(value, 'landmark') ||
+      !(value.landmark === null || isCityLandmark(value.landmark)) ||
+      (value.landmark && !(value.buildings.home && value.buildings.bakery)) ||
+      !isRecord(value.careerPlans)) return false
+  for (const [lot, plan] of Object.entries(value.careerPlans)) {
+    if ((lot !== 'home' && lot !== 'bakery') ||
+        !value.buildings[lot] || !isCityLandmark(plan)) return false
+  }
+  return true
 }
 
-// Route each supported envelope version to its own decoder before accepting the world.
+// Development saves are deliberately disposable: no migration or compatibility decoder.
 export function decode(raw: string): CityWorld | null {
   try {
     const envelope: unknown = JSON.parse(raw)
     if (!isRecord(envelope)) return null
     switch (envelope.version) {
-      case 1: return validWorld(envelope.world) ? {...envelope.world, landmark:null} : null
-      case 2: return validWorld(envelope.world, true) ? envelope.world : null
+      case 3: return validWorld(envelope.world) ? envelope.world : null
       default: return null
     }
   } catch { return null }
@@ -52,7 +56,7 @@ export function load(): CityWorld | null {
 
 export function save(world: CityWorld): boolean {
   try {
-    if (!validWorld(world, true)) return false
+    if (!validWorld(world)) return false
     localStorage.setItem(saveKey, JSON.stringify({ version, world }))
     return true
   } catch { return false }

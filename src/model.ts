@@ -16,6 +16,8 @@ export interface CityWorld {
   buildings: Partial<Record<Purpose, BuildingModel>>
   /** The player's completed multi-storey home, on the third city plot. */
   landmark: MultiStoreyPlan | null
+  /** Completed commissions keep their full architectural plan for the common city renderer. */
+  careerPlans: Partial<Record<Purpose, MultiStoreyPlan>>
   theme: Theme
   quality: 'auto' | 'low' | 'high'
   draft: BuildingModel | null
@@ -31,7 +33,7 @@ export const prices = { wall: 12, door: 45, window: 30, surface: 4 } as const
 export const plot = { width: 12, depth: 10 } as const
 
 export function freshWorld(): CityWorld {
-  return { buildings: {}, landmark: null, theme: 0, quality: 'auto', draft: null, accepted: false, rewards: 0 }
+  return { buildings: {}, landmark: null, careerPlans: {}, theme: 0, quality: 'auto', draft: null, accepted: false, rewards: 0 }
 }
 
 export function newModel(purpose: Purpose): BuildingModel {

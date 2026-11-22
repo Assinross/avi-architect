@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import {
   addFloor, columns, estimate, footprint, fromLegacy, rectangleArea, removeTopFloor,
-  roofs, stairRect, subtractRect, toLegacy, totalArea, validate, STOREY_HEIGHT,
+  roofs, stairRect, subtractRect, toLegacy, totalArea, validate, STOREY_HEIGHT, openingRuns, overhangs,
   type Facing, type FloorPlan, type MultiStoreyPlan, type Staircase,
 } from '../src/multistorey'
 
@@ -61,12 +61,52 @@ describe('Многоэтажный архитектурный планировщ
   })
   it('запрещает лестницу сквозь перегородку, но разрешает Т-примыкания',()=>{
     const a=rect(0,0,8,8,'a'),b=rect(2,2,6,6,'b')
-    a.stairToNext=stair(2,2)
+    // An eastward two-cell flight crosses x=3, unlike the old 2 x 3 stair box.
+    a.stairToNext=stair(2,2,'east')
     a.partitions=[{id:'p',a:[3,1],b:[3,6]}]
     expect(validate({floors:[a,b]}).some(p=>p.kind==='stairs')).toBe(true)
     a.partitions=[{id:'p',a:[6,0],b:[6,8]}]
     expect(validate({floors:[a,b]})).toEqual([])
-    expect(stairRect(stair(2,2,'east'))).toEqual({x0:2,z0:2,x1:5,z1:4})
+    expect(stairRect(stair(2,2,'east'))).toEqual({x0:2,z0:2,x1:4,z1:3})
+  })
+  it('различает винтовую лестницу на одну клетку и прямую на две',()=>{
+    const a=rect(1,1,6,6,'a'),b=rect(3,3,7,7,'b')
+    a.stairToNext={x:3,z:3,facing:'north',kind:'spiral'}
+    expect(stairRect(a.stairToNext)).toEqual({x0:3,z0:3,x1:4,z1:4})
+    expect(validate({floors:[a,b]})).toEqual([])
+    const spiralPrice=estimate({floors:[a,b]}).stairs
+    a.stairToNext={x:3,z:3,facing:'north',kind:'straight'}
+    expect(stairRect(a.stairToNext)).toEqual({x0:3,z0:3,x1:4,z1:5})
+    expect(validate({floors:[a,b]})).toEqual([])
+    expect(spiralPrice).toBeGreaterThan(estimate({floors:[a,b]}).stairs)
+    a.stairToNext={x:6,z:6,facing:'north',kind:'spiral'}
+    expect(validate({floors:[a,b]}).some(x=>x.kind==='stairs')).toBe(true)
+  })
+  it('объединяет соседние окна в один широкий проём, разделённые — оставляет разными',()=>{
+    const f=rect(1,1,8,7)
+    const wall=f.walls[0]
+    f.openings=[
+      {wallId:wall.id,offset:1.5,kind:'window'},
+      {wallId:wall.id,offset:2.5,kind:'window'},
+      {wallId:wall.id,offset:4.5,kind:'window'},
+      {wallId:wall.id,offset:5.5,kind:'door'},
+    ]
+    expect(openingRuns(wall,f.openings)).toEqual([
+      {wallId:wall.id,kind:'window',offset:1.5,width:2},
+      {wallId:wall.id,kind:'window',offset:4.5,width:1},
+      {wallId:wall.id,kind:'door',offset:5.5,width:1},
+    ])
+    expect(validate({floors:[f]})).toEqual([])
+  })
+  it('нависающая мансарда создаёт поддерживающие столбы и открытую нижнюю зону',()=>{
+    const a=rect(1,1,6,6,'a'),b=rect(3,1,10,6,'b')
+    a.stairToNext={x:3,z:1,facing:'north',kind:'spiral'}
+    const plan={floors:[a,b]}
+    const wings=overhangs(plan)
+    expect(wings).toEqual([{x0:6,z0:1,x1:10,z1:6,upperFloor:1}])
+    expect(wings.reduce((sum,w)=>sum+rectangleArea(w),0)).toBe(20)
+    expect(columns(plan).length).toBeGreaterThan(0)
+    expect(columns(plan).every(c=>c.fromY===0&&c.toY===STOREY_HEIGHT)).toBe(true)
   })
   it('удаляет только верхний этаж с очисткой лестницы',()=>{
     const first=rect(1,1,8,8,'a')
