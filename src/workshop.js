@@ -303,7 +303,10 @@ planSvg.addEventListener('pointerdown',event=>{
    floor:active,origin:point,current:point,before:deep(project),
    moved:false,changed:false,
    newId:'inner-'+Date.now()+'-'+Math.random().toString(36).slice(2,7)};
- planSvg.setPointerCapture(event.pointerId);
+ // For a simple two-click wall placement, let the native click keep its node target.
+ // Capture the pointer immediately for existing-element moves; for new drawing
+ // capture only once it has actually moved to another grid point.
+ if(kind!=='new-partition'&&kind!=='outline')planSvg.setPointerCapture(event.pointerId);
  $('planDrawing').classList.add('dragging');
 });
 planSvg.addEventListener('pointermove',event=>{
@@ -312,7 +315,11 @@ planSvg.addEventListener('pointermove',event=>{
  const point=gridPoint(event);
  if(!point||point[0]===g.current[0]&&point[1]===g.current[1])return;
  g.current=point;
- if(point[0]!==g.origin[0]||point[1]!==g.origin[1])g.moved=true;
+ if(point[0]!==g.origin[0]||point[1]!==g.origin[1]){
+   g.moved=true;
+   if(!planSvg.hasPointerCapture(event.pointerId))
+     planSvg.setPointerCapture(event.pointerId);
+ }
  const dx=point[0]-g.origin[0],dz=point[1]-g.origin[1];
  const floor=g.before.floors[g.floor];
  let next=null;
