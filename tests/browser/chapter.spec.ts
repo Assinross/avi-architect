@@ -2,7 +2,8 @@ import { test, expect, type Page } from '@playwright/test'
 import { saveKey } from '../../src/storage'
 import type { CityWorld } from '../../src/model'
 
-const action=(p:Page,name:string)=>p.locator('[data-action="'+name+'"]')
+// Модалка стоит в конце документа, поэтому её кнопка с тем же действием идёт последней.
+const action=(p:Page,name:string)=>p.locator('[data-action="'+name+'"]').last()
 const editor=(p:Page,name:string)=>p.locator('[data-editor-action="'+name+'"]')
 const world=(p:Page):Promise<CityWorld>=>p.evaluate(key=>JSON.parse(localStorage.getItem(key)!).world,saveKey)
 
