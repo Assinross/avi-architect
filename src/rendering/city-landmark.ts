@@ -2,12 +2,12 @@ import * as T from 'three'
 import { STOREY_HEIGHT, wallLength, footprint, subtractRect, stairRect, columns, roofs, openingRuns, overhangs,
   type MultiStoreyPlan, type Wall, type Opening, type Rect } from '../multistorey'
 import { Artist, roof, shade, type Palette } from './art'
-import { architecturalDetails } from './architectural-details'
+import { architecturalDetails, verandaSpan } from './architectural-details'
 
 /** Geometry-only renderer: the workshop and town use the same immutable floor plans. */
 export function cityLandmark(plan:MultiStoreyPlan,palette:Palette,theme:number,options:{showRoof?:boolean}={}):T.Group {
   const modern=plan.style==='modern'
-  const p:Palette=modern?{...palette,plaster:0xf2ede2,wood:0x4e4b45,stone:0xbeb9ae,roof:0xb85f48}:palette
+  const p:Palette=modern?{...palette,plaster:0xf1eee6,wood:0x795d49,stone:0xbeb9ae,roof:0x445158}:palette
   const a=new Artist()
   const putRect=(r:Rect,y:number,h:number,color:number)=>{
     a.put('box',(r.x0+r.x1)/2,y,(r.z0+r.z1)/2,r.x1-r.x0,h,r.z1-r.z0,color)
@@ -15,10 +15,8 @@ export function cityLandmark(plan:MultiStoreyPlan,palette:Palette,theme:number,o
   // All storeys share one elevation datum: slab top touches wall bottom and
   // wall top touches the underside of the next slab, without the old 9–13 cm seam.
   const slab=0.18
-  function wall(w:Wall,openings:Opening[],level:number,inside:boolean) {
-    // The contemporary ground floor is enclosed by full-height glass instead
-    // of opaque masonry. Its glazing and frames are created once below.
-    if(modern && level===0 && !inside)return
+  function wall(w:Wall,openings:Opening[],level:number,inside:boolean,rect:Rect) {
+    // A real masonry envelope on every level, with one glass garden room.
     const len=wallLength(w)
     if(!len)return
     const alongX=w.a[1]===w.b[1]
@@ -31,9 +29,18 @@ export function cityLandmark(plan:MultiStoreyPlan,palette:Palette,theme:number,o
       a.put('box',x,y0+slab+y,z,alongX?length:depth,height,alongX?depth:length,color)
     }
     const plaster=inside?shade(p.plaster,-.075):p.plaster
-    // Adjacent same-type openings are a single wide window or double door.
-    const runs=new Map(openingRuns(w,openings).map(run=>[run.offset-.5,run]))
+    // Keep every planned opening on the solid walls. At the glass bay,
+    // remove only the masonry cells; never put plaster behind the glazing.
+    const gardenFace=modern && level===0 && !inside && alongX && Math.abs(w.a[1]-rect.z1)<.001
+    const glass=gardenFace?verandaSpan(rect):null
+    const rawRuns=openingRuns(w,openings)
+    const splitRuns=glass?rawRuns.flatMap(run=>Array.from(
+      {length:run.width},(_,j)=>({...run,offset:run.offset+j,width:1})
+    )):rawRuns
+    const runs=new Map(splitRuns.map(run=>[run.offset-.5,run]))
     for(let i=0;i<len;i++){
+      const x=w.a[0]+sign*(i+.5)
+      if(glass && x>glass.x0 && x<glass.x1)continue
       const run=runs.get(i)
       if(!run){put(i+.5,wallHeight/2,1.01,wallHeight,plaster);continue}
       const wide=run.width
@@ -68,8 +75,8 @@ export function cityLandmark(plan:MultiStoreyPlan,palette:Palette,theme:number,o
     const incoming=plan.floors[index-1]?.stairToNext
     for(const piece of incoming?subtractRect(rect,stairRect(incoming)):[rect])
       putRect(piece,index*STOREY_HEIGHT+slab/2,slab,p.stone)
-    for(const w of floor.walls)wall(w,floor.openings,index,false)
-    for(const w of floor.partitions)wall(w,floor.openings,index,true)
+    for(const w of floor.walls)wall(w,floor.openings,index,false,rect)
+    for(const w of floor.partitions)wall(w,floor.openings,index,true,rect)
     if(floor.stairToNext&&index<plan.floors.length-1){
       const stair=floor.stairToNext,opening=stairRect(stair)
       const xMid=(opening.x0+opening.x1)/2,zMid=(opening.z0+opening.z1)/2
@@ -125,7 +132,7 @@ export function cityLandmark(plan:MultiStoreyPlan,palette:Palette,theme:number,o
     else{
       const width=r.x1-r.x0,depth=r.z1-r.z0
       roof(a,(r.x0+r.x1)/2,r.y-.09,(r.z0+r.z1)/2,
-        width+.34,depth+.37,Math.max(.60,Math.min(2,depth*.31)),p,109+plan.floors.length,theme<2)
+        width+.34,depth+.37,Math.max(.60,Math.min(2,depth*.31)),p,109+plan.floors.length,!modern&&theme<2)
     }
   }
   const decoration=architecturalDetails(a,plan,p,modern,options.showRoof!==false)
@@ -134,6 +141,10 @@ export function cityLandmark(plan:MultiStoreyPlan,palette:Palette,theme:number,o
   building.userData.glass=decoration.glazing
   building.userData.architecturalStyle=modern?'modern':'classic'
   building.userData.decorativeParts=decoration.detailCount
+  const ground=plan.floors[0]&&footprint(plan.floors[0])
+  const span=modern&&ground?verandaSpan(ground):null
+  building.userData.verandaGlassWidth=span?span.x1-span.x0:0
+  building.userData.groundWallPerimeter=ground?2*((ground.x1-ground.x0)+(ground.z1-ground.z0)):0
   // Expose explicit elevation intervals for deterministic seam regression tests.
   building.userData.floorSlabThickness=slab
   building.userData.wallBottom=slab

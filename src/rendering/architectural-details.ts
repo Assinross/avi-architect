@@ -2,10 +2,20 @@ import * as T from 'three'
 import { STOREY_HEIGHT, footprint, openingRuns, roofs, type MultiStoreyPlan, type Rect } from '../multistorey'
 import { Artist, random, shade, type Palette } from './art'
 
+/** The garden-facing veranda uses only the centre of the ground-floor facade.
+ * The remaining perimeter remains a masonry house, not a glass pavilion.
+ */
+export function verandaSpan(rect:Rect):{x0:number;x1:number} {
+  const width=rect.x1-rect.x0
+  const glassWidth=Math.max(1,Math.floor(width*.6))
+  const margin=Math.floor((width-glassWidth)/2)
+  return {x0:rect.x0+margin,x1:rect.x0+margin+glassWidth}
+}
+
 /**
  * Decorative geometry stays entirely outside the saved floor plan.
- * Boxes, foliage and small fixtures are instanced by Artist; only the four
- * translucent veranda panels need separate transparent meshes.
+ * Boxes, foliage and small fixtures are instanced by Artist; only the
+ * garden-facing sliding veranda panels need separate transparent meshes.
  */
 export function architecturalDetails(
   a: Artist, plan: MultiStoreyPlan, p: Palette, modern: boolean, showRoof: boolean
@@ -27,68 +37,68 @@ export function architecturalDetails(
     const base = index * STOREY_HEIGHT
     const frontZ = rect.z1
     if (modern && index === 0) {
-      // Slim load-bearing frames, continuous glass, a real enclosed lounge.
-      const glassMaterial = new T.MeshStandardMaterial({
-        color: 0x91c6be, transparent: true, opacity: .28, depthWrite: false,
-        metalness: .09, roughness: .13, side: T.DoubleSide,
-        emissive: 0xffdbaa, emissiveIntensity: .03
+      // Glass is limited to a central bay facing the garden, with solid
+      // plaster-and-timber corner bays on either side.
+      const span=verandaSpan(rect)
+      const length=span.x1-span.x0
+      const panels=Math.max(1,Math.ceil(length/1.25))
+      const panelWidth=length/panels
+      const glassMaterial=new T.MeshStandardMaterial({
+        color:0xa5c9cc,transparent:true,opacity:.30,depthWrite:false,
+        metalness:.07,roughness:.17,side:T.DoubleSide,
+        emissive:0xffd6a4,emissiveIntensity:.03
       })
-      const paneY = base + (STOREY_HEIGHT + .18) / 2
-      for (const wall of floor.walls) {
-        const alongX = wall.a[1] === wall.b[1]
-        const len = alongX ? Math.abs(wall.b[0] - wall.a[0]) : Math.abs(wall.b[1] - wall.a[1])
-        if (!len) continue
-        const x = (wall.a[0] + wall.b[0]) / 2
-        const z = (wall.a[1] + wall.b[1]) / 2
-        const pane = new T.Mesh(new T.BoxGeometry(
-          alongX ? len - .13 : .045, STOREY_HEIGHT - .29, alongX ? .045 : len - .13
-        ), glassMaterial)
-        pane.position.set(x, paneY, z)
-        pane.receiveShadow = false
+      for(let i=0;i<panels;i++){
+        const x=span.x0+(i+.5)*panelWidth
+        const pane=new T.Mesh(
+          new T.BoxGeometry(panelWidth-.075,STOREY_HEIGHT-.43,.046),glassMaterial
+        )
+        pane.position.set(x,STOREY_HEIGHT/2+.065,frontZ)
+        pane.receiveShadow=false
         glazing.push(pane)
-        edge(x, .24, z, alongX, 0, 0, 0, len, .11, .16, 0x343c3c)
-        edge(x, STOREY_HEIGHT - .06, z, alongX, 0, 0, 0, len, .18, .22, 0x343c3c)
-        for (let j = 0; j <= Math.ceil(len / 1.45); j++) {
-          const t = j / Math.ceil(len / 1.45)
-          const u = alongX ? Math.min(wall.a[0], wall.b[0]) + t * len : x
-          const v = alongX ? z : Math.min(wall.a[1], wall.b[1]) + t * len
-          add('box', u, 1.65, v, alongX ? .07 : .12, 2.82, alongX ? .12 : .07, 0x333b3b)
-        }
-        // Discreet sliding door rail and handle, no opaque wall across veranda.
-        if (Math.abs(z - frontZ) < .01) {
-          edge(x, 1.48, z, alongX, 0, 1, .084, .035, .34, .045, 0xd8c4a5)
-          edge(x, .21, z, alongX, 0, 1, .09, Math.min(len, 2.8), .03, .08, 0x9a8f7f)
-        }
       }
+      const center=(span.x0+span.x1)/2
+      edge(center,.27,frontZ,true,0,1,0,length,.13,.21,0x424b4d)
+      edge(center,STOREY_HEIGHT-.12,frontZ,true,0,1,0,length,.22,.26,0x424b4d)
+      for(let i=0;i<=panels;i++){
+        const x=span.x0+i*panelWidth
+        add('box',x,STOREY_HEIGHT/2+.09,frontZ,.075,STOREY_HEIGHT-.36,.15,0x394548)
+      }
+      // Low-profile sliding track, handle, and warm timber reveal.
+      edge(center,.27,frontZ,true,0,1,.13,length-.12,.035,.09,0x9e9488)
+      edge(center,1.35,frontZ,true,0,1,.14,.055,.32,.07,0xdccab3)
+      for(const x of [span.x0-.12,span.x1+.12])
+        add('box',x,STOREY_HEIGHT/2,frontZ+.14,.16,STOREY_HEIGHT-.20,.22,0x9a7555)
       // Warm timber flooring and a furnished seating area visible through glass.
       const cx = (rect.x0 + rect.x1) / 2, cz = (rect.z0 + rect.z1) / 2
       const w = rect.x1 - rect.x0, d = rect.z1 - rect.z0
+      const loungeZ=cz+d*.15
       const seat = Math.min(2.2, w * .42)
       const depth = Math.min(1.1, d * .25)
       add('box', cx, .205, cz, w - .35, .05, d - .35, 0x9f8467)
       if (!lowDetail && w >= 3 && d >= 3) {
         // Sofa, backrest, arms, cushions, rug, coffee table, two lounge chairs.
-        add('box', cx, .26, cz + .32, Math.min(3.35, w * .70), .035, Math.min(2.7, d * .65), 0xd7cbb4)
-        add('box', cx, .60, cz - depth * .60, seat, .27, depth, 0xd7c5ad)
-        add('box', cx, .94, cz - depth * 1.05, seat, .57, .20, 0xe4d8c9)
+        add('box', cx, .26, loungeZ + .32, Math.min(3.35, w * .70), .035, Math.min(2.7, d * .65), 0xd7cbb4)
+        add('box', cx, .60, loungeZ - depth * .60, seat, .27, depth, 0xd7c5ad)
+        add('box', cx, .94, loungeZ - depth * 1.05, seat, .57, .20, 0xe4d8c9)
         for (const s of [-1, 1]) {
-          add('box', cx + s * seat * .46, .73, cz - depth * .60, .16, .36, depth, 0xc4ab92)
-          add('box', cx + s * seat * .25, .78, cz - depth * .99, .39, .35, .18, s < 0 ? 0xd29c76 : 0xf5ebda)
+          add('box', cx + s * seat * .46, .73, loungeZ - depth * .60, .16, .36, depth, 0xc4ab92)
+          add('box', cx + s * seat * .25, .78, loungeZ - depth * .99, .39, .35, .18, s < 0 ? 0xd29c76 : 0xf5ebda)
         }
-        add('box', cx, .49, cz + depth * .67, seat * .67, .10, .63, 0x98724d)
+        add('box', cx, .49, loungeZ + depth * .67, seat * .67, .10, .63, 0x98724d)
         for (const s of [-1, 1]) for (const t of [-1, 1])
-          add('cylinder', cx + s * seat * .27, .31, cz + depth * .67 + t * .23, .07, .35, .07, 0x544437)
+          add('cylinder', cx + s * seat * .27, .31, loungeZ + depth * .67 + t * .23, .07, .35, .07, 0x544437)
         for (const s of [-1, 1]) {
           const x = cx + s * Math.min(w * .38, seat * .78)
-          add('box', x, .55, cz + depth * .38, .60, .25, .64, 0xd5bda0)
-          add('box', x, .88, cz + depth * .07, .64, .55, .16, 0xe6dbca)
-          add('box', x, .35, cz + depth * .38, .68, .12, .70, 0x76563e)
+          add('box', x, .55, loungeZ + depth * .38, .60, .25, .64, 0xd5bda0)
+          add('box', x, .88, loungeZ + depth * .07, .64, .55, .16, 0xe6dbca)
+          add('box', x, .35, loungeZ + depth * .38, .68, .12, .70, 0x76563e)
         }
         // Pendant bulbs are stylized emissive-colour accents, not realtime lights.
         for (const x of [cx - .52, cx + .52]) {
-          add('cylinder', x, STOREY_HEIGHT - .52, cz, .025, .45, .025, 0x57483e)
-          add('cone', x, STOREY_HEIGHT - .76, cz, .30, .23, .30, 0xb98b53)
-          add('bush', x, STOREY_HEIGHT - .88, cz, .12, .12, .12, 0xffd999)
+          add('cylinder', x, STOREY_HEIGHT - .52, loungeZ, .025, .45, .025, 0x57483e)
+          add('cone', x, STOREY_HEIGHT - .76, loungeZ, .30, .23, .30, 0xb98b53)
+          add('bush', x, STOREY_HEIGHT - .88, loungeZ, .12, .12, .12, 0xffd999)
         }
         for (const [x, z] of [[rect.x0 + .55, rect.z0 + .62], [rect.x1 - .60, rect.z1 - .60]]) {
           add('cylinder', x, .37, z, .45, .35, .45, 0xb9a68b)
@@ -125,10 +135,19 @@ export function architecturalDetails(
           }
         }
       }
-      if (modern && index === 0) continue
       if (lowDetail || len === 0) continue
       const sign = alongX ? Math.sign(wall.b[0] - wall.a[0]) : Math.sign(wall.b[1] - wall.a[1])
-      for (const run of openingRuns(wall, floor.openings)) {
+      const gardenFace=modern && index===0 && alongX && Math.abs(z-frontZ)<.001
+      const glazed=gardenFace?verandaSpan(rect):null
+      const runs=openingRuns(wall,floor.openings).flatMap(run=>{
+        if(!glazed)return [run]
+        return Array.from({length:run.width},(_,i)=>({...run,offset:run.offset+i,width:1}))
+          .filter(part=>{
+            const x=wall.a[0]+sign*part.offset
+            return x<glazed.x0 || x>glazed.x1
+          })
+      })
+      for (const run of runs) {
         const t = run.offset - .5 + run.width / 2
         const xx = alongX ? wall.a[0] + sign * t : x
         const zz = alongX ? z : wall.a[1] + sign * t

@@ -49,7 +49,10 @@ describe('Town multi-storey mesh',()=>{
     const before=structuredClone(modern)
     const contemporary=cityLandmark(modern,palettes[0],0)
     expect(contemporary.userData.architecturalStyle).toBe('modern')
-    expect(contemporary.userData.glass).toHaveLength(4)
+    expect(contemporary.userData.glass).toHaveLength(3)
+    expect(contemporary.userData.verandaGlassWidth).toBe(3)
+    expect(contemporary.userData.verandaGlassWidth).toBeLessThan(contemporary.userData.groundWallPerimeter/4)
+    expect(contemporary.userData.glass.every((pane: {position:{z:number}})=>pane.position.z===7)).toBe(true)
     expect(contemporary.userData.decorativeParts).toBeGreaterThan(20)
     expect(modern).toEqual(before)
     disposeGroup(contemporary)
@@ -61,9 +64,34 @@ describe('Town multi-storey mesh',()=>{
     disposeGroup(traditional)
 
     const withoutRoof=cityLandmark(modern,palettes[0],0,{showRoof:false})
-    expect(withoutRoof.userData.glass).toHaveLength(4)
+    expect(withoutRoof.userData.glass).toHaveLength(3)
     expect(withoutRoof.userData.decorativeParts).toBeLessThan(1000)
     disposeGroup(withoutRoof)
     expect(addFloor(modern).style).toBe('modern')
+  })
+
+  it('keeps masonry on three sides, with just one garden-facing glass bay',()=>{
+    const ground=fromLegacy({
+      walls:[
+        {id:'a',a:[1,1] as [number,number],b:[9,1] as [number,number]},
+        {id:'b',a:[9,1] as [number,number],b:[9,6] as [number,number]},
+        {id:'c',a:[9,6] as [number,number],b:[1,6] as [number,number]},
+        {id:'d',a:[1,6] as [number,number],b:[1,1] as [number,number]},
+      ],
+      openings:[
+        {wallId:'a',offset:1.5,kind:'door' as const},
+        {wallId:'b',offset:2.5,kind:'window' as const},
+        {wallId:'c',offset:.5,kind:'window' as const},
+        {wallId:'c',offset:3.5,kind:'door' as const},
+      ],
+    })
+    const before=structuredClone(ground)
+    const result=cityLandmark({...ground,style:'modern'},palettes[0],0)
+    expect(result.userData.verandaGlassWidth).toBe(4)
+    expect(result.userData.groundWallPerimeter).toBe(26)
+    expect(result.userData.glass).toHaveLength(4)
+    expect(result.userData.glass.every((pane: {position:{z:number}})=>pane.position.z===6)).toBe(true)
+    expect(ground).toEqual(before)
+    disposeGroup(result)
   })
 })
