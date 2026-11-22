@@ -27,6 +27,8 @@ describe('Town multi-storey mesh',()=>{
     expect(volume.userData.openingGroups).toBe(2) // door + ONE panoramic window
     expect(volume.userData.overhangSections).toBe(1)
     expect(volume.userData.spiralStairs).toBe(1)
+    expect(volume.userData.floorSlabThickness).toBe(volume.userData.wallBottom)
+    expect(volume.userData.wallTop).toBe(3.2)
     expect(plan).toEqual(before)
     disposeGroup(volume)
   })
