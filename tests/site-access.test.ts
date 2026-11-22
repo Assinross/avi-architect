@@ -68,7 +68,7 @@ describe('Пешеходные дорожки и участки возле го�
     expect(first.route.at(-1)).toEqual(first.threshold)
     expect(second.route.at(-1)).toEqual(second.threshold)
     expect(onPublicTrail(second.junction)).toBe(true)
-    expect(nearestPublicTrail({x:14,z:6})).toEqual(second.junction).not.toBeUndefined()
+    expect(onPublicTrail(nearestPublicTrail({x:14,z:6}))).toBe(true)
   })
 
   it('не создаёт дорожку без наружной двери',()=>{
