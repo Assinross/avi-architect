@@ -262,6 +262,9 @@ function finishGesture(){
  const g=gesture;
  gesture=null;
  $('planDrawing').classList.remove('dragging');
+ // A click without movement must keep the original SVG node in the DOM until
+ // the browser dispatches click; repainting on pointerup would destroy it.
+ if(!g.moved)return;
  if(g.moved){
    suppressClick=true;
    // Some browsers omit click after a pointer capture/drag.
