@@ -219,7 +219,7 @@ export function bookMarkup(status:{home:boolean;bakery:boolean;landmark:boolean}
       ${storyImage(story)}<span><b>${escape(story.title)}</b>
       <small>${escape(story.person)} · ${escape(story.years)}</small>
       <em>${progress.solved.includes(story.id)?'✓ Знание проверено':progress.read.includes(story.id)?'Уже читал':'Новое открытие'}</em></span></button>`).join('')}</div>
-    <p class="ed-footnote">Знания и истории доступны без интернета после загрузки игры. Фото и авторские права указаны в каждой карточке.</p>
+    <p class="ed-footnote">Все фотографии хранятся вместе с игрой. Автор и условия использования указаны в каждой карточке.</p>
   </div>`
 }
 export function installPhotoFallback(root:ParentNode):void {

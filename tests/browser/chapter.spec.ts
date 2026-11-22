@@ -36,6 +36,7 @@ test('Общая мастерская: карьерные открытия, тр
   await page.locator('#publish').click()
   await page.waitForURL(/finished=home/)
   await expect(page.locator('.sheet')).toContainText('Заказ выполнен')
+  await expect(page.locator('[data-education-feature="home"]')).toContainText('Гауди')
   expect((await world(page)).careerPlans.home?.floors).toHaveLength(1)
   await action(page,'city').click()
 
@@ -58,6 +59,7 @@ test('Общая мастерская: карьерные открытия, тр
   await page.locator('#publish').click()
   await page.waitForURL(/finished=bakery/)
   await expect(page.locator('.sheet')).toContainText('Заказ выполнен')
+  await expect(page.locator('[data-education-feature="bakery"]')).toContainText('Шухов')
   expect((await world(page)).careerPlans.bakery?.floors[0].partitions).toHaveLength(1)
   await action(page,'city').click()
 
@@ -74,6 +76,7 @@ test('Общая мастерская: карьерные открытия, тр
   await page.locator('#publish').click()
   await page.waitForURL(/\?city=1/)
   await expect(page.locator('.sheet')).toContainText('дом Ники готов')
+  await expect(page.locator('[data-story="fallingwater"]')).toContainText('Фрэнк Ллойд Райт')
   const city=await world(page)
   expect(city.rewards).toBe(3)
   expect(city.landmark?.floors).toHaveLength(2)
