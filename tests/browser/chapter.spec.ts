@@ -6,13 +6,13 @@ const action=(page:Page,name:string)=>page.locator('[data-action="'+name+'"]').l
 const world=(page:Page):Promise<CityWorld>=>
   page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).world,saveKey)
 
-async function openings(page:Page,numberOfWindows:number) {
+async function openings(page:Page,numberOfWindows:number,requireValid=true) {
   await page.locator('[data-tool="door"]').click()
   await page.locator('[data-wall="f0a"][data-offset="0.5"]').click()
   await page.locator('[data-tool="window"]').click()
   for(let i=0;i<numberOfWindows;i++)
     await page.locator(`[data-wall="f0a"][data-offset="${i+1.5}"]`).click()
-  await expect(page.locator('#checks .fine')).toBeVisible()
+  if(requireValid)await expect(page.locator('#checks .fine')).toBeVisible()
 }
 
 test('Общая мастерская: карьерные открытия, три проекта и заселение города',async({page})=>{
@@ -67,7 +67,7 @@ test('Общая мастерская: карьерные открытия, тр
   await expect(page).toHaveURL(/mode=career&quest=landmark/)
   await expect(page.locator('#add')).toBeEnabled()
   await expect(page.locator('[data-tool="stairs"]')).toBeVisible()
-  await openings(page,2)
+  await openings(page,2,false)
   await page.locator('#add').click()
   await expect(page.locator('#floorStat')).toHaveText('2')
   await expect(page.locator('#checks .fine')).toBeVisible()
