@@ -151,6 +151,12 @@ function drawPlan(){
   if(tool==='inspect'){
     const attr=kind==='wall'?`data-drag-edge="${w.id}"`:`data-drag-partition="${w.id}"`;
     items.push(`<line x1="${px(w.a[0])}" y1="${py(w.a[1])}" x2="${px(w.b[0])}" y2="${py(w.b[1])}" stroke="transparent" stroke-width="24" pointer-events="stroke" ${attr}/>`);
+    if(kind==='wall'){
+      const x=(w.a[0]+w.b[0])/2,z=(w.a[1]+w.b[1])/2;
+      const arrow=w.a[0]===w.b[0]?'↔':'↕';
+      items.push(`<circle data-drag-edge="${w.id}" cx="${px(x)}" cy="${py(z)}" r="10" fill="#fff9e4" stroke="#5e836c" stroke-width="2.5"/>`);
+      items.push(`<text x="${px(x)}" y="${py(z)+4}" font-size="12" text-anchor="middle" font-weight="800" fill="#3b6854" pointer-events="none">${arrow}</text>`);
+    }
     if(kind==='partition')for(const end of ['a','b']){
       items.push(`<circle cx="${px(w[end][0])}" cy="${py(w[end][1])}" r="9" class="vertex-handle" data-drag-end="${w.id}" data-end="${end}"/>`);
     }
