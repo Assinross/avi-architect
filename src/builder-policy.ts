@@ -1,4 +1,4 @@
-import { estimate, totalArea, validate, type MultiStoreyPlan } from './multistorey'
+import { estimate, totalArea, validate, openingRuns, type MultiStoreyPlan } from './multistorey'
 import { issues as legacyIssues, rules, type BuildingModel, type Purpose } from './model'
 import { isCityLandmark, CITY_MAX_FLOORS } from './city-landmark'
 
@@ -43,7 +43,9 @@ export function builderIssues(plan: MultiStoreyPlan, mode: BuilderMode): string[
   const ground=plan.floors[0]
   const exteriorDoor=ground?.openings.some(o=>o.kind==='door' && ground.walls.some(w=>w.id===o.wallId))
   if (!exteriorDoor) problems.push('Нужна входная дверь на наружной стене первого этажа.')
-  const windows=plan.floors.reduce((sum,f)=>sum+f.openings.filter(o=>o.kind==='window' && f.walls.some(w=>w.id===o.wallId)).length,0)
+  // Two adjacent glazing cells are one panoramic window for the client's brief.
+  const windows=plan.floors.reduce((sum,f)=>sum+f.walls.reduce((n,w)=>
+    n+openingRuns(w,f.openings).filter(run=>run.kind==='window').length,0),0)
   if (windows<profile.windows) problems.push(`Нужно минимум ${profile.windows} наружных окон.`)
   if (profile.budget!==null && estimate(plan).total>profile.budget)
     problems.push(`Превышен бюджет ${profile.budget} ◇.`)

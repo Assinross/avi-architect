@@ -30,7 +30,8 @@ function validFloor(value: unknown): value is FloorPlan {
   const stair = value.stairToNext
   return stair === null || (isRecord(stair) &&
     Number.isSafeInteger(stair.x) && Number.isSafeInteger(stair.z) &&
-    ['north','south','east','west'].includes(String(stair.facing)))
+    ['north','south','east','west'].includes(String(stair.facing)) &&
+    (stair.kind===undefined || stair.kind==='spiral' || stair.kind==='straight'))
 }
 
 /** Validate untrusted, persisted geometry before passing it to Three.js. */
