@@ -2,10 +2,12 @@ import * as T from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { plot, wallLength, type BuildingModel, type CityWorld, type Purpose } from './model'
 import { Artist, disposeGroup, palettes, shapes, vec, type Palette } from './rendering/art'
-import { landscape, lots, unit } from './rendering/land'
+import { landscape, lots, landmarkLot, unit } from './rendering/land'
+import { cityLandmark } from './rendering/city-landmark'
+import { STOREY_HEIGHT,wallLength as floorWallLength,type MultiStoreyPlan } from './multistorey'
 import { house, lot } from './rendering/building'
 
-type Target = Purpose | 'mayor' | 'resident' | 'baker'
+type Target = Purpose | 'landmark' | 'mayor' | 'resident' | 'baker' | 'nika'
 type Citizen = {actor:T.Group; legs:T.Mesh[]; name:Target; stops:T.Vector3[]; index:number; resting:number; atDoor:boolean}
 const origin=(purpose:Purpose)=>vec(lots[purpose].x-plot.width*unit/2,.045,lots[purpose].z-plot.depth*unit/2)
 function doorway(model:BuildingModel){
@@ -17,6 +19,18 @@ function doorway(model:BuildingModel){
   const nx=wall.a[0]===wall.b[0]?(x===Math.min(...pts.map(p=>p[0]))?-1:1):0
   const nz=wall.a[1]===wall.b[1]?(z===Math.min(...pts.map(p=>p[1]))?-1:1):0
   return origin(model.purpose).add(vec((x+nx*.72)*unit,0,(z+nz*.72)*unit))
+}
+const landmarkOrigin=()=>vec(landmarkLot.x-plot.width*unit/2,.045,landmarkLot.z-plot.depth*unit/2)
+function landmarkDoorway(plan:MultiStoreyPlan) {
+  const ground=plan.floors[0],opening=ground.openings.find(o=>o.kind==='door'&&ground.walls.some(w=>w.id===o.wallId))
+  const wall=ground.walls.find(w=>w.id===opening?.wallId)
+  if(!opening||!wall)return vec(landmarkLot.x,.05,landmarkLot.z)
+  const t=opening.offset/floorWallLength(wall)
+  const x=T.MathUtils.lerp(wall.a[0],wall.b[0],t),z=T.MathUtils.lerp(wall.a[1],wall.b[1],t)
+  const xs=ground.walls.flatMap(w=>[w.a[0],w.b[0]]),zs=ground.walls.flatMap(w=>[w.a[1],w.b[1]])
+  const nx=wall.a[0]===wall.b[0]?(x===Math.min(...xs)?-1:1):0
+  const nz=wall.a[1]===wall.b[1]?(z===Math.min(...zs)?-1:1):0
+  return landmarkOrigin().add(vec((x+nx*.75)*unit,0,(z+nz*.75)*unit))
 }
 function resident(name:Target,coat:number):Citizen {
   const a=new Artist(),apron=name==='baker',skin=name==='mayor'?0xc99871:0xe2b28c
@@ -112,8 +126,9 @@ export class Valley{
     this.renderer.setPixelRatio(Math.min(devicePixelRatio,this.quality==='high'?2:this.quality==='low'?1:this.autoRatio))
     this.renderer.setSize(w,h,false)
   }
-  private setView(focus?:Purpose,immediate=false) {
-    const target=focus?vec(lots[focus].x,1.15,lots[focus].z):vec(this.aspect<.85?4.0:-.3,2.5,-.7)
+  private setView(focus?:Purpose|'landmark',immediate=false) {
+    const place=focus==='landmark'?landmarkLot:focus?lots[focus]:null
+    const target=place?vec(place.x,focus==='landmark'?3.3:1.15,place.z):vec(this.aspect<.85?4.0:-.3,2.5,-.7)
     const eye=target.clone().add(focus?vec(8.8,9.3,12.8):this.aspect<.85?vec(12.4,11,24):vec(10.4,10.7,23.8))
     if(immediate){this.controls.target.copy(target);this.camera.position.copy(eye);this.controls.update()}
     else{this.focus=target;this.eye=eye}
@@ -132,9 +147,9 @@ export class Valley{
     this.scene.fog=new T.FogExp2(p.sky,.012)
     this.sun.color.setHex(theme===3?0xd4f1ff:theme===2?0xffeed6:0xffdfaa)
   }
-  city(world:CityWorld,focus?:Purpose){
+  city(world:CityWorld,focus?:Purpose|'landmark'){
     const previous=this.mode,themeChanged=this.theme!==world.theme
-    const focusKey=focus??'', key=JSON.stringify([world.theme,world.buildings,focusKey])
+    const focusKey=focus??'', key=JSON.stringify([world.theme,world.buildings,world.landmark,focusKey])
     if(this.quality!==world.quality){
       this.quality=world.quality;this.resize()
       this.sun.castShadow=this.quality!=='low'
@@ -160,22 +175,31 @@ export class Valley{
       this.addHit(purpose,vec(lots[purpose].x,model?1:.1,lots[purpose].z),vec(plot.width*unit,model?2:.3,plot.depth*unit))
     }
     if(world.buildings.bakery){
-      const extra=lot(p,false);extra.scale.setScalar(unit);extra.position.set(-22,.12,-8);this.objects.add(extra)
+      const plan=world.landmark
+      const extra=plan?cityLandmark(plan,p,world.theme):lot(p,focus==='landmark')
+      extra.scale.setScalar(unit);extra.position.copy(landmarkOrigin());this.objects.add(extra)
+      const height=plan?plan.floors.length*STOREY_HEIGHT*unit:0
+      this.addHit('landmark',vec(landmarkLot.x,plan?height/2:.12,landmarkLot.z),
+        vec(plot.width*unit,plan?height+.4:.35,plot.depth*unit))
     }
     const mayor=resident('mayor',0x495d65),emma=resident('resident',0x8f685e),baker=resident('baker',0x8b7660)
-    for(const person of [mayor,emma,baker]){
-      const first=person.name==='mayor'?vec(4.7,.05,.9):person.name==='resident'?vec(-1.7,.05,2.65):vec(7.9,.05,2.45)
+    const nika=resident('nika',0x65836d)
+    for(const person of world.buildings.bakery?[mayor,emma,baker,nika]:[mayor,emma,baker]){
+      const first=person.name==='mayor'?vec(4.7,.05,.9):person.name==='resident'?vec(-1.7,.05,2.65):person.name==='nika'?vec(-17.6,.05,-2.0):vec(7.9,.05,2.45)
       person.actor.position.copy(first)
       const model=person.name==='resident'?world.buildings.home:person.name==='baker'?world.buildings.bakery:undefined
       if(model){
         const porch=doorway(model),street=vec(lots[model.purpose].x,.05,model.purpose==='home'?.5:5.3)
         person.stops=[street,porch,street,first];person.atDoor=false
+      }else if(person.name==='nika'&&world.landmark){
+        const street=vec(landmarkLot.x,.05,landmarkLot.z+4.1)
+        person.stops=[street,landmarkDoorway(world.landmark),street,first]
       }else{person.stops=[first,first.clone().add(vec(1.4,0,.38)),first.clone().add(vec(-.65,0,.55))]}
       if(person===mayor&&world.buildings.bakery)person.stops.push(vec(12,.05,4),vec(15,.05,5.2),doorway(world.buildings.bakery),vec(13,.05,4.8))
       this.citizens.push(person);this.objects.add(person.actor)
       this.addHit(person.name,vec(0,.80,0),vec(.85,1.65,.85),person.actor)
     }
-    this.controls.minDistance=5;this.controls.maxDistance=57;this.setView(focus,themeChanged&&previous==='city'&&!focus)
+    this.controls.minDistance=5;this.controls.maxDistance=world.landmark?100:57;this.setView(focus,themeChanged&&previous==='city'&&!focus)
   }
   preview(model:BuildingModel,theme:number,roof:boolean){
     const key=JSON.stringify([model,theme,roof])
@@ -222,7 +246,7 @@ export class Valley{
         const dest=citizen.stops[citizen.index],delta=dest.clone().sub(citizen.actor.position),distance=delta.length()
         if(distance<.08){
           const working=citizen.name==='baker'&&citizen.index===1
-          citizen.atDoor=citizen.name==='resident'&&citizen.index===1&&citizen.stops.length===4
+          citizen.atDoor=(citizen.name==='resident'||citizen.name==='nika')&&citizen.index===1&&citizen.stops.length===4
           citizen.actor.visible=!citizen.atDoor;citizen.resting=working?11:citizen.atDoor?6:2
           citizen.index=(citizen.index+1)%citizen.stops.length
           citizen.legs.forEach(l=>l.rotation.x=0)
