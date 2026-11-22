@@ -4,6 +4,7 @@ import { load as loadCity, save as saveCity } from './storage';
 import { publishLandmark } from './city-landmark';
 import { builderIssues, commissionModel, profiles } from './builder-policy';
 import { complete, currentQuest } from './model';
+import * as Gestures from './plan-interactions';
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
@@ -116,7 +117,7 @@ function drawPlan(){
  items.push(`<rect x="${bx}" y="${by}" width="${12*cell}" height="${10*cell}" fill="#f8f7eb" stroke="#b5c3af" stroke-width="1"/>`);
  const below=active?rfloor(active-1):null;
  if(below)items.push(`<rect x="${px(below.x0)}" y="${py(below.z0)}" width="${(below.x1-below.x0)*cell}" height="${(below.z1-below.z0)*cell}" fill="#f0ce9c" opacity=".36" stroke="#c49b6d" stroke-dasharray="5 5" stroke-width="2"/>`)
- if(r)items.push(`<rect x="${px(r.x0)}" y="${py(r.z0)}" width="${(r.x1-r.x0)*cell}" height="${(r.z1-r.z0)*cell}" fill="#e4efe5" stroke="#b2c4b5"/>`)
+ if(r)items.push(`<rect x="${px(r.x0)}" y="${py(r.z0)}" width="${(r.x1-r.x0)*cell}" height="${(r.z1-r.z0)*cell}" fill="#e4efe5" stroke="#b2c4b5" ${tool==='inspect'?'data-drag-room="true"':''}/>`)
  // On the lower floor show the raised mansard wing and its automatic pillars.
  for(const wing of Engine.overhangs(project).filter(w=>w.upperFloor===active+1)){
    items.push(`<rect data-overhang="true" x="${px(wing.x0)}" y="${py(wing.z0)}" width="${(wing.x1-wing.x0)*cell}" height="${(wing.z1-wing.z0)*cell}" fill="#ddba9666" stroke="#af7952" stroke-width="2" stroke-dasharray="7 4" pointer-events="none"/>`)
@@ -147,6 +148,13 @@ function drawPlan(){
   if(incoming){const s=Engine.stairRect(incoming);items.push(`<rect x="${px(s.x0)}" y="${py(s.z0)}" width="${(s.x1-s.x0)*cell}" height="${(s.z1-s.z0)*cell}" fill="none" stroke="#3b9b91" stroke-dasharray="5 4" stroke-width="3"/><text x="${px(s.x0)+6}" y="${py(s.z1)-5}" fill="#407c7a" font-size="10">снизу</text>`)}}
  for(const [kind,walls] of [['wall',f.walls],['partition',f.partitions]])for(const w of walls){
   items.push(`<line x1="${px(w.a[0])}" y1="${py(w.a[1])}" x2="${px(w.b[0])}" y2="${py(w.b[1])}" class="${kind} ${tool==='erase'?'hot':''}" data-remove-wall="${kind==='partition'?w.id:''}"/>`);
+  if(tool==='inspect'){
+    const attr=kind==='wall'?`data-drag-edge="${w.id}"`:`data-drag-partition="${w.id}"`;
+    items.push(`<line x1="${px(w.a[0])}" y1="${py(w.a[1])}" x2="${px(w.b[0])}" y2="${py(w.b[1])}" stroke="transparent" stroke-width="24" pointer-events="stroke" ${attr}/>`);
+    if(kind==='partition')for(const end of ['a','b']){
+      items.push(`<circle cx="${px(w[end][0])}" cy="${py(w[end][1])}" r="9" class="vertex-handle" data-drag-end="${w.id}" data-end="${end}"/>`);
+    }
+  }
   if(tool==='door'||tool==='window'||tool==='erase'){
    for(let k=0;k<Engine.wallLength(w);k++){const off=k+.5,x=w.a[0]+(w.b[0]-w.a[0])*off/Engine.wallLength(w),z=w.a[1]+(w.b[1]-w.a[1])*off/Engine.wallLength(w);
     items.push(`<circle cx="${px(x)}" cy="${py(z)}" r="11" fill="transparent" class="cell" data-wall="${w.id}" data-offset="${off}"/>`);
@@ -163,10 +171,11 @@ function drawPlan(){
    const x1=w.a[0]+(w.b[0]-w.a[0])*end,z1=w.a[1]+(w.b[1]-w.a[1])*end;
    const x=(x0+x1)/2,z=(z0+z1)/2,color=run.kind==='door'?'#c18a58':'#83b9c5';
    items.push(`<line data-opening-span="${run.kind}" data-span-width="${run.width}" x1="${px(x0)}" y1="${py(z0)}" x2="${px(x1)}" y2="${py(z1)}" stroke="${color}" stroke-width="8" stroke-linecap="round" pointer-events="none"/>`);
+   if(tool==='inspect')items.push(`<line x1="${px(x0)}" y1="${py(z0)}" x2="${px(x1)}" y2="${py(z1)}" stroke="transparent" stroke-width="22" pointer-events="stroke" data-drag-opening="${w.id}" data-run-offset="${run.offset}" data-run-width="${run.width}"/>`);
    if(run.width>1)items.push(`<text x="${px(x)}" y="${py(z)-10}" text-anchor="middle" font-size="10" font-weight="800" fill="#477c83" pointer-events="none">${run.width} м</text>`);
   }
  }
- if(tool==='partition'||tool==='stairs'){
+ if(tool==='partition'||tool==='outline'||tool==='stairs'){
   if(tool==='stairs'){for(let x=0;x<=12;x++)for(let z=0;z<=10;z++)items.push(`<circle cx="${px(x)}" cy="${py(z)}" r="12" fill="transparent" class="cell" data-stair-node="${x},${z}"/>`)}
   else for(let x=0;x<=12;x++)for(let z=0;z<=10;z++)items.push(`<circle cx="${px(x)}" cy="${py(z)}" r="${start&&start[0]===x&&start[1]===z?6:3}" class="node" data-node="${x},${z}"/>`)
  }
@@ -195,23 +204,34 @@ function paint(){
 }
 function setFootprint(){
  const x0=+$('x0').value,z0=+$('z0').value,w=+$('w').value,d=+$('d').value;
- if(![x0,z0,w,d].every(Number.isInteger)||x0<0||z0<0||w<=0||d<=0||x0+w>12||z0+d>10){toast('Габариты должны помещаться на сетке 12 × 10 м.');dims();return}
+ if(![x0,z0,w,d].every(Number.isInteger)||x0<0||z0<0||w<2||d<2||x0+w>12||z0+d>10){toast('Комната должна помещаться на сетке, размер каждой стороны от 2 м.');dims();return}
  const prior=rfloor();if(prior&&prior.x0===x0&&prior.z0===z0&&prior.x1===x0+w&&prior.z1===z0+d)return;
- modify(()=>{const f=project.floors[active],newWalls=rectFloor(x0,z0,x0+w,z0+d,active).walls;
-   const oldWallIds=new Set(f.walls.map(wall=>wall.id));f.walls=newWalls;f.openings=f.openings.filter(o=>!oldWallIds.has(o.wallId));});
- message('Габариты этажа изменены. Проверь лестницы и опоры.');
+ const changed=Gestures.dragFootprint(project.floors[active],[x0,z0],[x0+w,z0+d]);
+ if(!changed){toast('Не получилось изменить контур: проверь перегородки и окна.');dims();return}
+ modify(()=>{project.floors[active]=changed});
+ message('Контур изменён, наружные стены соединены. Окна и перегородки адаптированы.');
 }
 $('floors').addEventListener('click',e=>{const b=e.target.closest('[data-floor]');if(!b)return;active=+b.dataset.floor;start=null;paint();message('План этажа выбран. Нижний контур виден светлым пунктиром.')});
-$('tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]');if(!b||b.hidden||b.disabled)return;tool=b.dataset.tool;start=null;paint();message({partition:'Выбери две точки сетки для внутренней перегородки.',stairs:'Выбери тип: винтовая на 1 клетку или обычная на 2. Затем щёлкни начальную клетку.',door:'Щёлкни метровый сегмент наружной стены или перегородки.',window:'Щёлкни метровый сегмент стены для окна.',erase:'Нажми на перегородку или дверной/оконный маркер, чтобы убрать.',inspect:'Осматривай план и объём справа.'}[tool])});
+$('tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]');if(!b||b.hidden||b.disabled)return;tool=b.dataset.tool;start=null;paint();message({outline:'Потяни от первого угла комнаты до противоположного: все четыре внешние стены подстроятся.',partition:'Нажми и тяни, чтобы нарисовать прямую стену. Можно также выбрать две точки по очереди.',stairs:'Выбери тип лестницы, затем начальную клетку.',door:'Нажми на метровый участок стены.',window:'Нажми на метровый участок стены; соседние окна объединятся.',erase:'Нажми на элемент для удаления.',inspect:'Тяни внешнюю стену, перегородку, её конец, окно, лестницу или всю комнату. Esc отменяет перетаскивание.'}[tool])});
 $('plan').addEventListener('click',e=>{
  const t=e.target;
  const node=t.closest('[data-node]');const stairNode=t.closest('[data-stair-node]');const wallTarget=t.closest('[data-wall]');const partitionTarget=t.closest('[data-remove-wall]');
+ if(node&&tool==='outline'){
+  const point=parseXY(node.dataset.node);
+  if(!start){start=point;message('Начальная точка выбрана. Теперь выбери противоположный угол или растяни контур мышью.');paint();return}
+  const first=start;start=null;
+  const changed=Gestures.dragFootprint(project.floors[active],first,point);
+  if(!changed){message('Минимальный размер 2 × 2 м; существующие элементы должны оставаться внутри.');paint();return}
+  modify(()=>{project.floors[active]=changed});message('Контур комнаты замкнут и обновлён.');return;
+ }
  if(node&&tool==='partition'&&profile.partitions){
   const pt=parseXY(node.dataset.node);if(!start){start=pt;message(`Первая точка (${pt.join(', ')}). Укажи вторую точку на той же вертикали или горизонтали.`);paint();return}
   const first=start;start=null;if(first[0]!==pt[0]&&first[1]!==pt[1]){message('Перегородка должна быть прямой: горизонталь или вертикаль.');paint();return}
   if(first[0]===pt[0]&&first[1]===pt[1]){paint();return}
-  modify(()=>{const f=project.floors[active];f.partitions.push({id:`inner-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,a:first,b:pt})});
-  const warnings=Engine.validate(project).filter(p=>p.floor===active&&p.kind==='partition');if(warnings.length)message(warnings[0].message);else message('Перегородка добавлена.');return;
+  const id=`inner-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+  const changed=Gestures.drawPartition(project.floors[active],first,pt,id);
+  if(!changed){message('Не удалось поставить стену: она должна быть внутри комнаты, без наложений.');paint();return}
+  modify(()=>{project.floors[active]=changed});message('Стена добавлена.');return;
  }
  if(stairNode&&tool==='stairs'&&profile.stairs){
   if(active===project.floors.length-1){message('Сначала добавь следующий этаж, затем выбери этот этаж и поставь лестницу.');return}
