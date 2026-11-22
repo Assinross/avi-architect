@@ -138,7 +138,7 @@ export class Valley{
   }
   city(world:CityWorld,focus?:Purpose|'landmark'){
     const previous=this.mode,themeChanged=this.theme!==world.theme
-    const focusKey=focus??'', key=JSON.stringify([world.theme,world.buildings,world.landmark,focusKey])
+    const focusKey=focus??'', key=JSON.stringify([world.theme,world.buildings,world.careerPlans,world.landmark,focusKey])
     if(this.quality!==world.quality){
       this.quality=world.quality;this.resize()
       this.sun.castShadow=this.quality!=='low'
