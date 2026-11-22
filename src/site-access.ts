@@ -1,4 +1,4 @@
-import {plot, type Wall, type Opening} from './model'
+import {plot} from './model'
 
 /** All city coordinates are in the same world space as the original public footpath. */
 export interface Point2 {x:number;z:number}
@@ -19,9 +19,10 @@ export const publicTrail:readonly Point2[]=[
   {x:26,z:5.6},{x:38,z:8.3},
 ]
 
+/** Accept readonly multi-storey and mutable legacy wall coordinates equally. */
 export interface GroundPlan {
-  walls:readonly Wall[]
-  openings:readonly Opening[]
+  walls:readonly {id:string; a:readonly [number,number]; b:readonly [number,number]}[]
+  openings:readonly {wallId:string;offset:number;kind:'door'|'window'}[]
 }
 
 export interface SiteAccess {
@@ -57,7 +58,7 @@ export function nearestPublicTrail(point:Point2):Point2 {
   }
   return {...nearest}
 }
-function bbox(walls:readonly Wall[],origin:Point2):SiteRect|null {
+function bbox(walls:GroundPlan['walls'],origin:Point2):SiteRect|null {
   if(!walls.length)return null
   const points=walls.flatMap(w=>[w.a,w.b])
   const xs=points.map(p=>origin.x+p[0]*SITE_METRE)

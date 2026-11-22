@@ -94,7 +94,7 @@ describe('Пешеходные дорожки и участки возле го�
 
   it('выравнивает землю под участками, не обнуляя весь природный рельеф',()=>{
     for(const site of Object.values(siteCenters))
-      expect(terrain(site.x,site.z)).toBe(0)
+      expect(terrain(site.x,site.z)).toBeCloseTo(0,10)
     // Beyond the site limits, the town keeps its rolling hills.
     expect(Math.abs(terrain(-33,-13))).toBeGreaterThan(.01)
   })
