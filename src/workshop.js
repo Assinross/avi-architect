@@ -382,7 +382,9 @@ window.addEventListener('keydown',event=>{
  if(event.key==='Escape'&&gesture){event.preventDefault();cancelGesture();}
 });
 $('plan').addEventListener('click',e=>{
- if(suppressClick){suppressClick=false;return}
+ // A synthetic click after capture lands on the SVG root; do not swallow
+ // the next genuine quick click on a window, stair or grid node.
+ if(suppressClick){suppressClick=false;if(e.target===planSvg)return}
  const t=e.target;
  const node=t.closest('[data-node]');const stairNode=t.closest('[data-stair-node]');const wallTarget=t.closest('[data-wall]');const partitionTarget=t.closest('[data-remove-wall]');
  if(node&&tool==='outline'){

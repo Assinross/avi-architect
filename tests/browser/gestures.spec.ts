@@ -19,7 +19,7 @@ test('Перетаскивание внешней стены сохраняет 
   const errors:string[]=[]
   page.on('pageerror',e=>errors.push(e.message))
   await page.goto('/workshop.html')
-  await expect(page.locator('[data-drag-edge="f0b"]').first()).toBeVisible()
+  await expect(page.locator('circle[data-drag-edge="f0b"]')).toBeVisible()
   await dragGrid(page,[8,4],[10,4])
   await expect(page.locator('#w')).toHaveValue('9')
   await expect(page.locator('.wall')).toHaveCount(4)
