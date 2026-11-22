@@ -12,7 +12,7 @@ async function openings(page:Page,numberOfWindows:number,requireValid=true) {
   await page.locator('[data-tool="window"]').click()
   for(let i=0;i<numberOfWindows;i++)
     await page.locator(`[data-wall="f0a"][data-offset="${i*2+1.5}"]`).click()
-  if(requireValid)await expect(page.locator('#checks .fine')).toBeVisible()
+  if(requireValid)await expect(page.locator('#careerChecks .fine')).toBeVisible()
 }
 
 test('Общая мастерская: карьерные открытия, три проекта и заселение города',async({page})=>{
@@ -70,7 +70,7 @@ test('Общая мастерская: карьерные открытия, тр
   await openings(page,2,false)
   await page.locator('#add').click()
   await expect(page.locator('#floorStat')).toHaveText('2')
-  await expect(page.locator('#checks .fine')).toBeVisible()
+  await expect(page.locator('#careerChecks .fine')).toBeVisible()
   await page.locator('#publish').click()
   await page.waitForURL(/\?city=1/)
   await expect(page.locator('.sheet')).toContainText('дом Ники готов')
@@ -89,6 +89,7 @@ test.describe('Планшет',()=>{
   test('В карьере 3D включается по желанию; в свободном режиме показывается сразу',async({page})=>{
     await page.goto('./')
     for(const name of ['new','order','accept','edit'])await action(page,name).tap()
+    await expect(page).toHaveURL(/mode=career&quest=home/)
     await expect(page.locator('.preview-panel')).toBeHidden()
     await page.locator('#previewToggle').tap()
     await expect(page.locator('#volume canvas')).toBeVisible()

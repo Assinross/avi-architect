@@ -61,7 +61,8 @@ describe('Многоэтажный архитектурный планировщ
   })
   it('запрещает лестницу сквозь перегородку, но разрешает Т-примыкания',()=>{
     const a=rect(0,0,8,8,'a'),b=rect(2,2,6,6,'b')
-    a.stairToNext=stair(2,2)
+    // An eastward two-cell flight crosses x=3, unlike the old 2 x 3 stair box.
+    a.stairToNext=stair(2,2,'east')
     a.partitions=[{id:'p',a:[3,1],b:[3,6]}]
     expect(validate({floors:[a,b]}).some(p=>p.kind==='stairs')).toBe(true)
     a.partitions=[{id:'p',a:[6,0],b:[6,8]}]

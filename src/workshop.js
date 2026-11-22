@@ -68,6 +68,7 @@ let scene;
 const previewPanel=document.querySelector('.preview-panel');
 const previewToggle=$('previewToggle');
 if(!profile.live3d){
+  $('careerReview').hidden=false;
   document.body.classList.add('career');
   previewPanel.hidden=true;
   previewToggle.hidden=false;
@@ -189,6 +190,7 @@ function paint(){
  $('checks').innerHTML=careerIssues.length?careerIssues.slice(0,12).map(text=>`<li>${text}</li>`).join(''):
  `<li class="fine">✓ Проект удовлетворяет требованиям ${mode==='free'?'геометрии':'заказчика'}.</li>`;
  if(careerIssues.length>12)$('checks').innerHTML+=`<li>И ещё ${careerIssues.length-12} замечаний.</li>`;
+ if(!profile.live3d)$('careerChecks').innerHTML=$('checks').innerHTML;
  dims();drawPlan();volume();
 }
 function setFootprint(){
