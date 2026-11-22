@@ -9,56 +9,59 @@ export function cityLandmark(plan:MultiStoreyPlan,p:Palette,theme:number,options
   const putRect=(r:Rect,y:number,h:number,color:number)=>{
     a.put('box',(r.x0+r.x1)/2,y,(r.z0+r.z1)/2,r.x1-r.x0,h,r.z1-r.z0,color)
   }
+  // All storeys share one elevation datum: slab top touches wall bottom and
+  // wall top touches the underside of the next slab, without the old 9–13 cm seam.
+  const slab=0.18
   function wall(w:Wall,openings:Opening[],level:number,inside:boolean) {
     const len=wallLength(w)
     if(!len)return
     const alongX=w.a[1]===w.b[1]
     const sign=alongX?Math.sign(w.b[0]-w.a[0]):Math.sign(w.b[1]-w.a[1])
-    const thickness=inside?.12:.23,wallHeight=inside?2.65:2.91
+    const thickness=inside?.12:.23,wallHeight=STOREY_HEIGHT-slab
     const y0=level*STOREY_HEIGHT
     const put=(at:number,y:number,length:number,height:number,color:number,depth=thickness)=>{
       if(length<=0||height<=0)return
       const x=alongX?w.a[0]+sign*at:w.a[0],z=alongX?w.a[1]:w.a[1]+sign*at
-      a.put('box',x,y0+y,z,alongX?length:depth,height,alongX?depth:length,color)
+      a.put('box',x,y0+slab+y,z,alongX?length:depth,height,alongX?depth:length,color)
     }
     const plaster=inside?shade(p.plaster,-.075):p.plaster
     // Adjacent same-type openings are a single wide window or double door.
     const runs=new Map(openingRuns(w,openings).map(run=>[run.offset-.5,run]))
     for(let i=0;i<len;i++){
       const run=runs.get(i)
-      if(!run){put(i+.5,wallHeight/2+.16,1.01,wallHeight,plaster);continue}
+      if(!run){put(i+.5,wallHeight/2,1.01,wallHeight,plaster);continue}
       const wide=run.width
       const at=i+wide/2
       const door=run.kind==='door',bottom=door?.08:1.13,top=door?2.42:2.34
       const gap=wide-(door?.22:.24)
       const side=(wide-gap)/2
-      put(at,bottom/2+.16,wide,bottom,plaster)
-      put(at,(top+wallHeight)/2+.16,wide,wallHeight-top,plaster)
+      put(at,bottom/2,wide,bottom,plaster)
+      put(at,(top+wallHeight)/2,wide,wallHeight-top,plaster)
       for(const s of [-1,1])
-        put(at+s*(gap+side)/2,(top+bottom)/2+.16,side+.01,top-bottom,plaster)
+        put(at+s*(gap+side)/2,(top+bottom)/2,side+.01,top-bottom,plaster)
       if(door){
         // Wide double doors get two leaves; one-cell doors keep one.
-        put(at,(top+bottom)/2+.16,gap-.055,top-bottom-.055,shade(p.wood,.02),thickness+.025)
-        put(at+.18,1.24,.065,.07,0xe3c27f,thickness+.12)
-        if(wide>1)put(at,(top+bottom)/2+.16,.045,top-bottom-.035,p.wood,thickness+.08)
+        put(at,(top+bottom)/2,gap-.055,top-bottom-.055,shade(p.wood,.02),thickness+.025)
+        put(at+.18,1.24-slab,.065,.07,0xe3c27f,thickness+.12)
+        if(wide>1)put(at,(top+bottom)/2,.045,top-bottom-.035,p.wood,thickness+.08)
       }else{
         // Unbroken glazing: no brick pier between adjacent window cells.
-        put(at,(top+bottom)/2+.16,gap-.02,top-bottom,0xa3c9bd,thickness+.02)
-        put(at,(top+bottom)/2+.16,.06,top-bottom+.15,p.wood,thickness+.12)
-        put(at,top+.17,gap+.13,.08,p.wood,thickness+.12)
+        put(at,(top+bottom)/2,gap-.02,top-bottom,0xa3c9bd,thickness+.02)
+        put(at,(top+bottom)/2,.06,top-bottom+.15,p.wood,thickness+.12)
+        put(at,top+.01,gap+.13,.08,p.wood,thickness+.12)
         put(at,bottom+.09,gap+.22,.12,p.stone,thickness+.22)
         if(!inside)put(at,bottom-.11,gap+.24,.18,shade(p.wood,.1),thickness+.32)
       }
       i+=wide-1
     }
-    if(!inside)put(len/2,wallHeight+.12,len+.18,.16,p.wood,thickness+.06)
+    if(!inside)put(len/2,wallHeight-.11,len+.18,.18,p.wood,thickness+.06)
   }
   plan.floors.forEach((floor,index)=>{
     const rect=footprint(floor)
     if(!rect)return
     const incoming=plan.floors[index-1]?.stairToNext
     for(const piece of incoming?subtractRect(rect,stairRect(incoming)):[rect])
-      putRect(piece,index*STOREY_HEIGHT+.065,.13,p.stone)
+      putRect(piece,index*STOREY_HEIGHT+slab/2,slab,p.stone)
     for(const w of floor.walls)wall(w,floor.openings,index,false)
     for(const w of floor.partitions)wall(w,floor.openings,index,true)
     if(floor.stairToNext&&index<plan.floors.length-1){
@@ -120,6 +123,10 @@ export function cityLandmark(plan:MultiStoreyPlan,p:Palette,theme:number,options
     }
   }
   const building=a.finish()
+  // Expose explicit elevation intervals for deterministic seam regression tests.
+  building.userData.floorSlabThickness=slab
+  building.userData.wallBottom=slab
+  building.userData.wallTop=STOREY_HEIGHT
   building.userData.openingGroups=plan.floors.reduce((count,floor)=>count+[...floor.walls,...floor.partitions].reduce((n,w)=>n+openingRuns(w,floor.openings).length,0),0)
   building.userData.overhangSections=overhangs(plan).length
   building.userData.spiralStairs=plan.floors.filter(f=>f.stairToNext?.kind==='spiral').length

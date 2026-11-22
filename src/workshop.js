@@ -4,6 +4,7 @@ import { load as loadCity, save as saveCity } from './storage';
 import { publishLandmark } from './city-landmark';
 import { builderIssues, commissionModel, profiles } from './builder-policy';
 import { complete, currentQuest } from './model';
+import * as Gestures from './plan-interactions';
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
@@ -116,7 +117,7 @@ function drawPlan(){
  items.push(`<rect x="${bx}" y="${by}" width="${12*cell}" height="${10*cell}" fill="#f8f7eb" stroke="#b5c3af" stroke-width="1"/>`);
  const below=active?rfloor(active-1):null;
  if(below)items.push(`<rect x="${px(below.x0)}" y="${py(below.z0)}" width="${(below.x1-below.x0)*cell}" height="${(below.z1-below.z0)*cell}" fill="#f0ce9c" opacity=".36" stroke="#c49b6d" stroke-dasharray="5 5" stroke-width="2"/>`)
- if(r)items.push(`<rect x="${px(r.x0)}" y="${py(r.z0)}" width="${(r.x1-r.x0)*cell}" height="${(r.z1-r.z0)*cell}" fill="#e4efe5" stroke="#b2c4b5"/>`)
+ if(r)items.push(`<rect x="${px(r.x0)}" y="${py(r.z0)}" width="${(r.x1-r.x0)*cell}" height="${(r.z1-r.z0)*cell}" fill="#e4efe5" stroke="#b2c4b5" ${tool==='inspect'?'data-drag-room="true"':''}/>`)
  // On the lower floor show the raised mansard wing and its automatic pillars.
  for(const wing of Engine.overhangs(project).filter(w=>w.upperFloor===active+1)){
    items.push(`<rect data-overhang="true" x="${px(wing.x0)}" y="${py(wing.z0)}" width="${(wing.x1-wing.x0)*cell}" height="${(wing.z1-wing.z0)*cell}" fill="#ddba9666" stroke="#af7952" stroke-width="2" stroke-dasharray="7 4" pointer-events="none"/>`)
@@ -147,6 +148,19 @@ function drawPlan(){
   if(incoming){const s=Engine.stairRect(incoming);items.push(`<rect x="${px(s.x0)}" y="${py(s.z0)}" width="${(s.x1-s.x0)*cell}" height="${(s.z1-s.z0)*cell}" fill="none" stroke="#3b9b91" stroke-dasharray="5 4" stroke-width="3"/><text x="${px(s.x0)+6}" y="${py(s.z1)-5}" fill="#407c7a" font-size="10">снизу</text>`)}}
  for(const [kind,walls] of [['wall',f.walls],['partition',f.partitions]])for(const w of walls){
   items.push(`<line x1="${px(w.a[0])}" y1="${py(w.a[1])}" x2="${px(w.b[0])}" y2="${py(w.b[1])}" class="${kind} ${tool==='erase'?'hot':''}" data-remove-wall="${kind==='partition'?w.id:''}"/>`);
+  if(tool==='inspect'){
+    const attr=kind==='wall'?`data-drag-edge="${w.id}"`:`data-drag-partition="${w.id}"`;
+    items.push(`<line x1="${px(w.a[0])}" y1="${py(w.a[1])}" x2="${px(w.b[0])}" y2="${py(w.b[1])}" stroke="transparent" stroke-width="24" pointer-events="stroke" ${attr}/>`);
+    if(kind==='wall'){
+      const x=(w.a[0]+w.b[0])/2,z=(w.a[1]+w.b[1])/2;
+      const arrow=w.a[0]===w.b[0]?'↔':'↕';
+      items.push(`<circle data-drag-edge="${w.id}" cx="${px(x)}" cy="${py(z)}" r="10" fill="#fff9e4" stroke="#5e836c" stroke-width="2.5"/>`);
+      items.push(`<text x="${px(x)}" y="${py(z)+4}" font-size="12" text-anchor="middle" font-weight="800" fill="#3b6854" pointer-events="none">${arrow}</text>`);
+    }
+    if(kind==='partition')for(const end of ['a','b']){
+      items.push(`<circle cx="${px(w[end][0])}" cy="${py(w[end][1])}" r="9" class="vertex-handle" data-drag-end="${w.id}" data-end="${end}"/>`);
+    }
+  }
   if(tool==='door'||tool==='window'||tool==='erase'){
    for(let k=0;k<Engine.wallLength(w);k++){const off=k+.5,x=w.a[0]+(w.b[0]-w.a[0])*off/Engine.wallLength(w),z=w.a[1]+(w.b[1]-w.a[1])*off/Engine.wallLength(w);
     items.push(`<circle cx="${px(x)}" cy="${py(z)}" r="11" fill="transparent" class="cell" data-wall="${w.id}" data-offset="${off}"/>`);
@@ -163,12 +177,23 @@ function drawPlan(){
    const x1=w.a[0]+(w.b[0]-w.a[0])*end,z1=w.a[1]+(w.b[1]-w.a[1])*end;
    const x=(x0+x1)/2,z=(z0+z1)/2,color=run.kind==='door'?'#c18a58':'#83b9c5';
    items.push(`<line data-opening-span="${run.kind}" data-span-width="${run.width}" x1="${px(x0)}" y1="${py(z0)}" x2="${px(x1)}" y2="${py(z1)}" stroke="${color}" stroke-width="8" stroke-linecap="round" pointer-events="none"/>`);
+   if(tool==='inspect')items.push(`<line x1="${px(x0)}" y1="${py(z0)}" x2="${px(x1)}" y2="${py(z1)}" stroke="transparent" stroke-width="22" pointer-events="stroke" data-drag-opening="${w.id}" data-run-offset="${run.offset}" data-run-width="${run.width}"/>`);
    if(run.width>1)items.push(`<text x="${px(x)}" y="${py(z)-10}" text-anchor="middle" font-size="10" font-weight="800" fill="#477c83" pointer-events="none">${run.width} м</text>`);
   }
  }
- if(tool==='partition'||tool==='stairs'){
+ if(tool==='partition'||tool==='outline'||tool==='stairs'){
   if(tool==='stairs'){for(let x=0;x<=12;x++)for(let z=0;z<=10;z++)items.push(`<circle cx="${px(x)}" cy="${py(z)}" r="12" fill="transparent" class="cell" data-stair-node="${x},${z}"/>`)}
   else for(let x=0;x<=12;x++)for(let z=0;z<=10;z++)items.push(`<circle cx="${px(x)}" cy="${py(z)}" r="${start&&start[0]===x&&start[1]===z?6:3}" class="node" data-node="${x},${z}"/>`)
+ }
+ if(gesture&&(gesture.kind==='new-partition'||gesture.kind==='outline')&&gesture.moved){
+   const a=gesture.origin,b=gesture.current;
+   if(gesture.kind==='new-partition'){
+     const end=Math.abs(b[0]-a[0])>=Math.abs(b[1]-a[1])?[b[0],a[1]]:[a[0],b[1]];
+     items.push(`<line data-ghost="true" x1="${px(a[0])}" y1="${py(a[1])}" x2="${px(end[0])}" y2="${py(end[1])}"/>`);
+   }else{
+     const x0=Math.min(a[0],b[0]),z0=Math.min(a[1],b[1]);
+     items.push(`<rect data-ghost="true" x="${px(x0)}" y="${py(z0)}" width="${Math.abs(b[0]-a[0])*cell}" height="${Math.abs(b[1]-a[1])*cell}" fill="none"/>`);
+   }
  }
  $('plan').innerHTML=items.join('')
 }
@@ -195,23 +220,189 @@ function paint(){
 }
 function setFootprint(){
  const x0=+$('x0').value,z0=+$('z0').value,w=+$('w').value,d=+$('d').value;
- if(![x0,z0,w,d].every(Number.isInteger)||x0<0||z0<0||w<=0||d<=0||x0+w>12||z0+d>10){toast('Габариты должны помещаться на сетке 12 × 10 м.');dims();return}
+ if(![x0,z0,w,d].every(Number.isInteger)||x0<0||z0<0||w<2||d<2||x0+w>12||z0+d>10){toast('Комната должна помещаться на сетке, размер каждой стороны от 2 м.');dims();return}
  const prior=rfloor();if(prior&&prior.x0===x0&&prior.z0===z0&&prior.x1===x0+w&&prior.z1===z0+d)return;
- modify(()=>{const f=project.floors[active],newWalls=rectFloor(x0,z0,x0+w,z0+d,active).walls;
-   const oldWallIds=new Set(f.walls.map(wall=>wall.id));f.walls=newWalls;f.openings=f.openings.filter(o=>!oldWallIds.has(o.wallId));});
- message('Габариты этажа изменены. Проверь лестницы и опоры.');
+ const changed=Gestures.dragFootprint(project.floors[active],[x0,z0],[x0+w,z0+d]);
+ if(!changed){toast('Не получилось изменить контур: проверь перегородки и окна.');dims();return}
+ modify(()=>{project.floors[active]=changed});
+ message('Контур изменён, наружные стены соединены. Окна и перегородки адаптированы.');
 }
 $('floors').addEventListener('click',e=>{const b=e.target.closest('[data-floor]');if(!b)return;active=+b.dataset.floor;start=null;paint();message('План этажа выбран. Нижний контур виден светлым пунктиром.')});
-$('tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]');if(!b||b.hidden||b.disabled)return;tool=b.dataset.tool;start=null;paint();message({partition:'Выбери две точки сетки для внутренней перегородки.',stairs:'Выбери тип: винтовая на 1 клетку или обычная на 2. Затем щёлкни начальную клетку.',door:'Щёлкни метровый сегмент наружной стены или перегородки.',window:'Щёлкни метровый сегмент стены для окна.',erase:'Нажми на перегородку или дверной/оконный маркер, чтобы убрать.',inspect:'Осматривай план и объём справа.'}[tool])});
+$('tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]');if(!b||b.hidden||b.disabled)return;tool=b.dataset.tool;start=null;paint();message({outline:'Потяни от первого угла комнаты до противоположного: все четыре внешние стены подстроятся.',partition:'Нажми и тяни, чтобы нарисовать прямую стену. Можно также выбрать две точки по очереди.',stairs:'Выбери тип лестницы, затем начальную клетку.',door:'Нажми на метровый участок стены.',window:'Нажми на метровый участок стены; соседние окна объединятся.',erase:'Нажми на элемент для удаления.',inspect:'Тяни внешнюю стену, перегородку, её конец, окно, лестницу или всю комнату. Esc отменяет перетаскивание.'}[tool])});
+
+/**
+ * One pointer gesture = one undo step, for mouse, pen and touch.
+ * Keep capture on the stable <svg> root so rerendering handles during a drag
+ * cannot lose pointermove/pointerup.
+ */
+const planSvg=$('plan');
+let gesture=null;
+let suppressClick=false;
+function gridPoint(event){
+ const matrix=planSvg.getScreenCTM();
+ if(!matrix)return null;
+ const pointer=planSvg.createSVGPoint();
+ pointer.x=event.clientX;pointer.y=event.clientY;
+ const local=pointer.matrixTransform(matrix.inverse());
+ return [
+  Math.max(0,Math.min(Engine.GRID.width,Math.round((local.x-bx)/cell))),
+  Math.max(0,Math.min(Engine.GRID.depth,Math.round((local.y-by)/cell)))
+ ];
+}
+function cancelGesture(){
+ if(!gesture)return;
+ project=gesture.before;
+ gesture=null;
+ $('planDrawing').classList.remove('dragging');
+ paint();
+ message('Перетаскивание отменено.');
+}
+function finishGesture(){
+ if(!gesture)return;
+ const g=gesture;
+ gesture=null;
+ $('planDrawing').classList.remove('dragging');
+ // A click without movement must keep the original SVG node in the DOM until
+ // the browser dispatches click; repainting on pointerup would destroy it.
+ if(!g.moved)return;
+ if(g.moved){
+   suppressClick=true;
+   // Some browsers omit click after a pointer capture/drag.
+   window.setTimeout(()=>{suppressClick=false},200);
+ }
+ if(g.changed){
+   past.push(g.before);if(past.length>80)past.shift();
+   future=[];
+   start=null;
+   save();paint();
+   message(g.kind==='edge'?'Комната растянута: четыре стены остались соединены.':
+     g.kind==='new-partition'?'Стена создана.':
+     g.kind==='outline'?'Контур комнаты перестроен.':'Элемент перемещён. Для отмены нажми ↶.');
+ }else{
+   project=g.before;
+   paint();
+   if(g.moved)message('Дальше переместить нельзя: границы участка, стены или проёмы не позволяют.');
+ }
+}
+planSvg.addEventListener('pointerdown',event=>{
+ if(gesture||(event.pointerType==='mouse'&&event.button!==0))return;
+ const target=event.target instanceof Element?event.target:null;
+ const point=gridPoint(event);
+ if(!target||!point)return;
+ let kind=null,id=null,part=null,runOffset=null,runWidth=null;
+ if(tool==='partition'&&profile.partitions)kind='new-partition';
+ else if(tool==='outline')kind='outline';
+ else if(tool==='inspect'){
+   const opening=target.closest('[data-drag-opening]');
+   const endpoint=target.closest('[data-drag-end]');
+   const exterior=target.closest('[data-drag-edge]');
+   const partition=target.closest('[data-drag-partition]');
+   if(opening){
+     kind='opening';id=opening.dataset.dragOpening;
+     runOffset=Number(opening.dataset.runOffset);runWidth=Number(opening.dataset.runWidth);
+   }else if(endpoint){
+     kind='partition-end';id=endpoint.dataset.dragEnd;part=endpoint.dataset.end;
+   }else if(partition){kind='partition';id=partition.dataset.dragPartition}
+   else if(exterior){kind='edge';id=exterior.dataset.dragEdge}
+   else if(target.closest('[data-stair]')&&project.floors[active].stairToNext)kind='stair';
+   else if(target.closest('[data-drag-room]'))kind='room';
+ }
+ if(!kind)return;
+ gesture={pointerId:event.pointerId,kind,id,part,runOffset,runWidth,
+   floor:active,origin:point,current:point,before:deep(project),
+   moved:false,changed:false,
+   newId:'inner-'+Date.now()+'-'+Math.random().toString(36).slice(2,7)};
+ // For a simple two-click wall placement, let the native click keep its node target.
+ // Capture the pointer immediately for existing-element moves; for new drawing
+ // capture only once it has actually moved to another grid point.
+ if(kind!=='new-partition'&&kind!=='outline')planSvg.setPointerCapture(event.pointerId);
+ $('planDrawing').classList.add('dragging');
+});
+planSvg.addEventListener('pointermove',event=>{
+ const g=gesture;
+ if(!g||g.pointerId!==event.pointerId)return;
+ const point=gridPoint(event);
+ if(!point||point[0]===g.current[0]&&point[1]===g.current[1])return;
+ g.current=point;
+ if(point[0]!==g.origin[0]||point[1]!==g.origin[1]){
+   g.moved=true;
+   if(!planSvg.hasPointerCapture(event.pointerId))
+     planSvg.setPointerCapture(event.pointerId);
+ }
+ const dx=point[0]-g.origin[0],dz=point[1]-g.origin[1];
+ const floor=g.before.floors[g.floor];
+ let next=null;
+ switch(g.kind){
+   case 'edge':{
+     const w=floor.walls.find(w=>w.id===g.id);
+     if(w)next=Gestures.dragExteriorWall(floor,g.id,w.a[0]===w.b[0]?point[0]:point[1]);
+     break;
+   }
+   case 'room':next=Gestures.dragRoom(floor,dx,dz);break;
+   case 'partition':next=Gestures.dragPartition(floor,g.id,dx,dz);break;
+   case 'partition-end':next=Gestures.dragPartitionEnd(floor,g.id,g.part,point);break;
+   case 'stair':next=Gestures.dragStaircase(floor,dx,dz);break;
+   case 'opening':{
+     const w=[...floor.walls,...floor.partitions].find(w=>w.id===g.id);
+     if(w){
+       const axis=w.a[0]===w.b[0]?1:0;
+       const direction=Math.sign(w.b[axis]-w.a[axis]);
+       const nextOffset=g.runOffset+(axis===0?dx:dz)*direction;
+       next=Gestures.dragOpeningRun(floor,g.id,g.runOffset,g.runWidth,nextOffset);
+     }
+     break;
+   }
+   case 'new-partition':{
+     // CAD-style orthogonal snapping keeps every wall perfectly straight.
+     const end=Math.abs(dx)>=Math.abs(dz)?
+       [point[0],g.origin[1]]:[g.origin[0],point[1]];
+     next=Gestures.drawPartition(floor,g.origin,end,g.newId);
+     break;
+   }
+   case 'outline':next=Gestures.dragFootprint(floor,g.origin,point);break;
+ }
+ if(!next){
+   // A rejected preview never corrupts the last valid state.
+   return;
+ }
+ project=deep(g.before);
+ project.floors[g.floor]=next;
+ g.changed=JSON.stringify(next)!==JSON.stringify(floor);
+ drawPlan();
+ // Only a snapped grid change rebuilds the 3D mesh, not every mouse pixel.
+ volume();
+});
+planSvg.addEventListener('pointerup',event=>{
+ if(gesture?.pointerId===event.pointerId)finishGesture();
+});
+planSvg.addEventListener('pointercancel',event=>{
+ if(gesture?.pointerId===event.pointerId)cancelGesture();
+});
+window.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&gesture){event.preventDefault();cancelGesture();}
+});
 $('plan').addEventListener('click',e=>{
+ // A synthetic click after capture lands on the SVG root; do not swallow
+ // the next genuine quick click on a window, stair or grid node.
+ if(suppressClick){suppressClick=false;if(e.target===planSvg)return}
  const t=e.target;
  const node=t.closest('[data-node]');const stairNode=t.closest('[data-stair-node]');const wallTarget=t.closest('[data-wall]');const partitionTarget=t.closest('[data-remove-wall]');
+ if(node&&tool==='outline'){
+  const point=parseXY(node.dataset.node);
+  if(!start){start=point;message('Начальная точка выбрана. Теперь выбери противоположный угол или растяни контур мышью.');paint();return}
+  const first=start;start=null;
+  const changed=Gestures.dragFootprint(project.floors[active],first,point);
+  if(!changed){message('Минимальный размер 2 × 2 м; существующие элементы должны оставаться внутри.');paint();return}
+  modify(()=>{project.floors[active]=changed});message('Контур комнаты замкнут и обновлён.');return;
+ }
  if(node&&tool==='partition'&&profile.partitions){
   const pt=parseXY(node.dataset.node);if(!start){start=pt;message(`Первая точка (${pt.join(', ')}). Укажи вторую точку на той же вертикали или горизонтали.`);paint();return}
   const first=start;start=null;if(first[0]!==pt[0]&&first[1]!==pt[1]){message('Перегородка должна быть прямой: горизонталь или вертикаль.');paint();return}
   if(first[0]===pt[0]&&first[1]===pt[1]){paint();return}
-  modify(()=>{const f=project.floors[active];f.partitions.push({id:`inner-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,a:first,b:pt})});
-  const warnings=Engine.validate(project).filter(p=>p.floor===active&&p.kind==='partition');if(warnings.length)message(warnings[0].message);else message('Перегородка добавлена.');return;
+  const id=`inner-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+  const changed=Gestures.drawPartition(project.floors[active],first,pt,id);
+  if(!changed){message('Не удалось поставить стену: она должна быть внутри комнаты, без наложений.');paint();return}
+  modify(()=>{project.floors[active]=changed});message('Стена добавлена.');return;
  }
  if(stairNode&&tool==='stairs'&&profile.stairs){
   if(active===project.floors.length-1){message('Сначала добавь следующий этаж, затем выбери этот этаж и поставь лестницу.');return}
