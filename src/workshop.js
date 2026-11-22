@@ -41,7 +41,8 @@ function isSafePlan(p) {
     f && Array.isArray(f.walls) && f.walls.length === 4 &&
     Array.isArray(f.openings) && f.openings.length < 600 &&
     Array.isArray(f.partitions) && f.partitions.length < 600 &&
-    (f.stairToNext === null || (f.stairToNext && Number.isSafeInteger(f.stairToNext.x) && Number.isSafeInteger(f.stairToNext.z))) &&
+    (f.stairToNext === null || (f.stairToNext && Number.isSafeInteger(f.stairToNext.x) && Number.isSafeInteger(f.stairToNext.z) &&
+      (f.stairToNext.kind===undefined || ['straight','spiral'].includes(f.stairToNext.kind)))) &&
     f.walls.every(w => w && typeof w.id === 'string' && Array.isArray(w.a) && Array.isArray(w.b) &&
       w.a.length === 2 && w.b.length === 2 && [...w.a, ...w.b].every(Number.isSafeInteger)) &&
     f.partitions.every(w => w && typeof w.id === 'string' && Array.isArray(w.a) && Array.isArray(w.b) &&
@@ -78,6 +79,7 @@ if(!profile.partitions)document.querySelector('[data-tool="partition"]').hidden=
 if(!profile.stairs) {
   document.querySelector('[data-tool="stairs"]').hidden=true;
   $('stairFacing').closest('label').hidden=true;
+  $('stairKind').closest('label').hidden=true;
 }
 $('add').disabled=profile.maxFloors===1;
 $('remove').disabled=profile.maxFloors===1;
@@ -114,13 +116,31 @@ function drawPlan(){
  const below=active?rfloor(active-1):null;
  if(below)items.push(`<rect x="${px(below.x0)}" y="${py(below.z0)}" width="${(below.x1-below.x0)*cell}" height="${(below.z1-below.z0)*cell}" fill="#f0ce9c" opacity=".36" stroke="#c49b6d" stroke-dasharray="5 5" stroke-width="2"/>`)
  if(r)items.push(`<rect x="${px(r.x0)}" y="${py(r.z0)}" width="${(r.x1-r.x0)*cell}" height="${(r.z1-r.z0)*cell}" fill="#e4efe5" stroke="#b2c4b5"/>`)
+ // On the lower floor show the raised mansard wing and its automatic pillars.
+ for(const wing of Engine.overhangs(project).filter(w=>w.upperFloor===active+1)){
+   items.push(`<rect data-overhang="true" x="${px(wing.x0)}" y="${py(wing.z0)}" width="${(wing.x1-wing.x0)*cell}" height="${(wing.z1-wing.z0)*cell}" fill="#ddba9666" stroke="#af7952" stroke-width="2" stroke-dasharray="7 4" pointer-events="none"/>`)
+ }
+ for(const support of Engine.columns(project).filter(c=>c.upperFloor===active+1)){
+   items.push(`<circle data-support="true" cx="${px(support.x)}" cy="${py(support.z)}" r="5" fill="#8e6a50" stroke="#ffefd7" stroke-width="2" pointer-events="none"/>`)
+ }
  for(let x=0;x<=12;x++){items.push(`<line x1="${px(x)}" y1="${py(0)}" x2="${px(x)}" y2="${py(10)}" class="grid-line"/><text x="${px(x)}" y="${by-13}" fill="#839786" text-anchor="middle" font-size="10">${x}</text>`)}
  for(let z=0;z<=10;z++){items.push(`<line x1="${px(0)}" y1="${py(z)}" x2="${px(12)}" y2="${py(z)}" class="grid-line"/><text x="${bx-15}" y="${py(z)+3}" fill="#839786" text-anchor="middle" font-size="10">${z}</text>`)}
  const stair=f.stairToNext;
  if(stair){const s=Engine.stairRect(stair),w=(s.x1-s.x0)*cell,d=(s.z1-s.z0)*cell;
-  items.push(`<g data-stair="true"><rect x="${px(s.x0)}" y="${py(s.z0)}" width="${w}" height="${d}" fill="#a2c7c6aa" stroke="#477c83" stroke-width="2"/>`);
-  for(let k=1;k<12;k++){const fraction=k/12;if(stair.facing==='north'||stair.facing==='south')items.push(`<line x1="${px(s.x0)+4}" y1="${py(s.z0)+fraction*d}" x2="${px(s.x1)-4}" y2="${py(s.z0)+fraction*d}" stroke="#477c83" stroke-width="1"/>`);else items.push(`<line x1="${px(s.x0)+fraction*w}" y1="${py(s.z0)+4}" x2="${px(s.x0)+fraction*w}" y2="${py(s.z1)-4}" stroke="#477c83" stroke-width="1"/>`)}
-  items.push(`<text x="${px((s.x0+s.x1)/2)}" y="${py((s.z0+s.z1)/2)+3}" text-anchor="middle" fill="#2c6465" font-weight="800" font-size="12">↑</text></g>`)
+  const spiral=stair.kind==='spiral';
+  items.push(`<g data-stair="true" data-stair-kind="${spiral?'spiral':'straight'}"><rect x="${px(s.x0)}" y="${py(s.z0)}" width="${w}" height="${d}" fill="#a2c7c6aa" stroke="#477c83" stroke-width="2"/>`);
+  if(spiral){
+    const cx=px((s.x0+s.x1)/2),cy=py((s.z0+s.z1)/2);
+    items.push(`<circle cx="${cx}" cy="${cy}" r="${cell*.38}" fill="none" stroke="#477c83" stroke-width="1.7"/>`);
+    for(let k=0;k<12;k++){const angle=k*Math.PI/6;
+      items.push(`<line x1="${cx}" y1="${cy}" x2="${cx+Math.cos(angle)*cell*.38}" y2="${cy+Math.sin(angle)*cell*.38}" stroke="#477c83" stroke-width="1.2"/>`)}
+  }else{
+    for(let k=1;k<12;k++){const fraction=k/12;
+      if(stair.facing==='north'||stair.facing==='south')
+        items.push(`<line x1="${px(s.x0)+4}" y1="${py(s.z0)+fraction*d}" x2="${px(s.x1)-4}" y2="${py(s.z0)+fraction*d}" stroke="#477c83" stroke-width="1"/>`);
+      else items.push(`<line x1="${px(s.x0)+fraction*w}" y1="${py(s.z0)+4}" x2="${px(s.x0)+fraction*w}" y2="${py(s.z1)-4}" stroke="#477c83" stroke-width="1"/>`)}
+  }
+  items.push(`<text x="${px((s.x0+s.x1)/2)}" y="${py((s.z0+s.z1)/2)+3}" text-anchor="middle" fill="#2c6465" font-weight="800" font-size="12">${spiral?'↻':'↑'}</text></g>`)
  }
  if(active>0){const incoming=project.floors[active-1].stairToNext;
   if(incoming){const s=Engine.stairRect(incoming);items.push(`<rect x="${px(s.x0)}" y="${py(s.z0)}" width="${(s.x1-s.x0)*cell}" height="${(s.z1-s.z0)*cell}" fill="none" stroke="#3b9b91" stroke-dasharray="5 4" stroke-width="3"/><text x="${px(s.x0)+6}" y="${py(s.z1)-5}" fill="#407c7a" font-size="10">снизу</text>`)}}
@@ -132,9 +152,18 @@ function drawPlan(){
    }
   }
  }
- for(const o of f.openings){const w=[...f.walls,...f.partitions].find(w=>w.id===o.wallId);if(!w)continue;
-  const v=o.offset/Engine.wallLength(w),x=w.a[0]+(w.b[0]-w.a[0])*v,z=w.a[1]+(w.b[1]-w.a[1])*v;
-  items.push(`<circle cx="${px(x)}" cy="${py(z)}" r="7" fill="${o.kind==='door'?'#c18a58':'#83b9c5'}" stroke="#fff6e4" stroke-width="2" pointer-events="none"/>`)
+ // Each adjacent sequence of cells is one resizable glazed opening.
+ for(const w of [...f.walls,...f.partitions]){
+  const length=Engine.wallLength(w);
+  if(!length)continue;
+  for(const run of Engine.openingRuns(w,f.openings)){
+   const begin=(run.offset-.5)/length,end=(run.offset-.5+run.width)/length;
+   const x0=w.a[0]+(w.b[0]-w.a[0])*begin,z0=w.a[1]+(w.b[1]-w.a[1])*begin;
+   const x1=w.a[0]+(w.b[0]-w.a[0])*end,z1=w.a[1]+(w.b[1]-w.a[1])*end;
+   const x=(x0+x1)/2,z=(z0+z1)/2,color=run.kind==='door'?'#c18a58':'#83b9c5';
+   items.push(`<line data-opening-span="${run.kind}" data-span-width="${run.width}" x1="${px(x0)}" y1="${py(z0)}" x2="${px(x1)}" y2="${py(z1)}" stroke="${color}" stroke-width="8" stroke-linecap="round" pointer-events="none"/>`);
+   if(run.width>1)items.push(`<text x="${px(x)}" y="${py(z)-10}" text-anchor="middle" font-size="10" font-weight="800" fill="#477c83" pointer-events="none">${run.width} м</text>`);
+  }
  }
  if(tool==='partition'||tool==='stairs'){
   if(tool==='stairs'){for(let x=0;x<=12;x++)for(let z=0;z<=10;z++)items.push(`<circle cx="${px(x)}" cy="${py(z)}" r="12" fill="transparent" class="cell" data-stair-node="${x},${z}"/>`)}
@@ -146,7 +175,7 @@ function paint(){
  const f=project.floors[active],r=rfloor(),issues=Engine.validate(project),careerIssues=builderIssues(project,mode),posts=Engine.columns(project),roof=Engine.roofs(project),price=Engine.estimate(project);
  $('floorcount').textContent=project.floors.length;$('floorStat').textContent=project.floors.length;
  $('selectedFloor').textContent=`${active+1} этаж`;$('floorTitle').textContent=`${active+1} этажа`;
- if(f.stairToNext)$('stairFacing').value=f.stairToNext.facing;
+ if(f.stairToNext){$('stairFacing').value=f.stairToNext.facing;$('stairKind').value=f.stairToNext.kind||'straight';}
  $('floors').innerHTML=[...project.floors].reverse().map((floor,ri)=>{const i=project.floors.length-1-ri;
   return `<button class="floor" data-floor="${i}" aria-pressed="${i===active}">▣ ${i+1} этаж <span>${Engine.rectangleArea(Engine.footprint(floor)||{x0:0,x1:0,z0:0,z1:0})} м²</span></button>`}).join('');
  $('remove').disabled=project.floors.length===1||!profile.stairs;$('add').disabled=project.floors.length>=profile.maxFloors;$('undo').disabled=!past.length;$('redo').disabled=!future.length;
@@ -171,7 +200,7 @@ function setFootprint(){
  message('Габариты этажа изменены. Проверь лестницы и опоры.');
 }
 $('floors').addEventListener('click',e=>{const b=e.target.closest('[data-floor]');if(!b)return;active=+b.dataset.floor;start=null;paint();message('План этажа выбран. Нижний контур виден светлым пунктиром.')});
-$('tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]');if(!b||b.hidden||b.disabled)return;tool=b.dataset.tool;start=null;paint();message({partition:'Выбери две точки сетки для внутренней перегородки.',stairs:'Щёлкни точку для лестницы 2 × 3 м. Она соединяет этот этаж со следующим.',door:'Щёлкни метровый сегмент наружной стены или перегородки.',window:'Щёлкни метровый сегмент стены для окна.',erase:'Нажми на перегородку или дверной/оконный маркер, чтобы убрать.',inspect:'Осматривай план и объём справа.'}[tool])});
+$('tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]');if(!b||b.hidden||b.disabled)return;tool=b.dataset.tool;start=null;paint();message({partition:'Выбери две точки сетки для внутренней перегородки.',stairs:'Выбери тип: винтовая на 1 клетку или обычная на 2. Затем щёлкни начальную клетку.',door:'Щёлкни метровый сегмент наружной стены или перегородки.',window:'Щёлкни метровый сегмент стены для окна.',erase:'Нажми на перегородку или дверной/оконный маркер, чтобы убрать.',inspect:'Осматривай план и объём справа.'}[tool])});
 $('plan').addEventListener('click',e=>{
  const t=e.target;
  const node=t.closest('[data-node]');const stairNode=t.closest('[data-stair-node]');const wallTarget=t.closest('[data-wall]');const partitionTarget=t.closest('[data-remove-wall]');
@@ -184,7 +213,7 @@ $('plan').addEventListener('click',e=>{
  }
  if(stairNode&&tool==='stairs'&&profile.stairs){
   if(active===project.floors.length-1){message('Сначала добавь следующий этаж, затем выбери этот этаж и поставь лестницу.');return}
-  const [x,z]=parseXY(stairNode.dataset.stairNode);modify(()=>project.floors[active].stairToNext={x,z,facing:$('stairFacing').value});message('Лестница обновлена. Если она не помещается на обоих этажах, появится предупреждение.');return;
+  const [x,z]=parseXY(stairNode.dataset.stairNode);modify(()=>project.floors[active].stairToNext={x,z,facing:$('stairFacing').value,kind:$('stairKind').value});message('Лестница обновлена. Если она не помещается на обоих этажах, появится предупреждение.');return;
  }
  if(wallTarget&&['door','window','erase'].includes(tool)){
   const wallId=wallTarget.dataset.wall,offset=+wallTarget.dataset.offset;
@@ -198,9 +227,12 @@ $('plan').addEventListener('click',e=>{
 $('stairFacing').addEventListener('change',()=>{
  if(project.floors[active].stairToNext)modify(()=>project.floors[active].stairToNext.facing=$('stairFacing').value);
 });
+$('stairKind').addEventListener('change',()=>{
+ if(project.floors[active].stairToNext)modify(()=>project.floors[active].stairToNext.kind=$('stairKind').value);
+});
 for(const id of ['x0','z0','w','d'])$(id).addEventListener('change',setFootprint);
 $('add').addEventListener('click',()=>{if(!profile.stairs||project.floors.length>=profile.maxFloors)return;modify(()=>{const below=project.floors.length-1;project=Engine.addFloor(project);const r=rfloor(below);
-  if(r&&!project.floors[below].stairToNext)project.floors[below].stairToNext={x:r.x0,z:r.z0,facing:'north'};
+  if(r&&!project.floors[below].stairToNext)project.floors[below].stairToNext={x:r.x0,z:r.z0,facing:'north',kind:'straight'};
   active=project.floors.length-1;start=null;});message('Новый этаж скопировал наружный контур. Уменьши его габариты и проверь лестницу.')});
 $('remove').addEventListener('click',()=>{if(!profile.stairs||project.floors.length<2)return;modify(()=>{project=Engine.removeTopFloor(project);active=Math.min(active,project.floors.length-1);start=null});message('Верхний этаж удалён.')});
 $('undo').addEventListener('click',()=>{if(!past.length)return;future.push(deep(project));project=past.pop();active=Math.min(active,project.floors.length-1);start=null;save();paint();message('Последнее действие отменено.')});

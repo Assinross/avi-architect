@@ -13,7 +13,7 @@ function sample(width=5,depth=4): MultiStoreyPlan {
   ],openings:[
     {wallId:'a',kind:'door',offset:.5},
     {wallId:'a',kind:'window',offset:1.5},
-    {wallId:'a',kind:'window',offset:2.5},
+    {wallId:'a',kind:'window',offset:3.5},
   ]})
 }
 
@@ -34,6 +34,13 @@ describe('One builder engine, capability policies',()=>{
     expect(builderIssues(withPartition,'home').join(' ')).toContain('Перегородки')
     expect(builderIssues(withPartition,'bakery')).toEqual([])
     expect(builderIssues(withPartition,'free')).toEqual([])
+  })
+  it('считает соседние стеклянные сегменты одним широким окном',()=>{
+    const plan=sample()
+    expect(builderIssues(plan,'bakery')).toEqual([])
+    plan.floors[0].openings[2].offset=2.5
+    expect(builderIssues(plan,'bakery').join(' ')).toContain('минимум 2 наружных окон')
+    expect(builderIssues(plan,'free')).toEqual([])
   })
   it('unlocks stairs only for the third career commission',()=>{
     const plan=addFloor(sample(7,6))

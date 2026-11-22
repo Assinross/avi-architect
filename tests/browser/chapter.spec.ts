@@ -11,7 +11,7 @@ async function openings(page:Page,numberOfWindows:number,requireValid=true) {
   await page.locator('[data-wall="f0a"][data-offset="0.5"]').click()
   await page.locator('[data-tool="window"]').click()
   for(let i=0;i<numberOfWindows;i++)
-    await page.locator(`[data-wall="f0a"][data-offset="${i+1.5}"]`).click()
+    await page.locator(`[data-wall="f0a"][data-offset="${i*2+1.5}"]`).click()
   if(requireValid)await expect(page.locator('#checks .fine')).toBeVisible()
 }
 
