@@ -1,36 +1,25 @@
 import * as T from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { plot, wallLength, type BuildingModel, type CityWorld, type Purpose } from './model'
+import { plot, type BuildingModel, type CityWorld, type Purpose } from './model'
 import { Artist, disposeGroup, palettes, shapes, vec, type Palette } from './rendering/art'
 import { landscape, lots, landmarkLot, unit } from './rendering/land'
 import { cityLandmark } from './rendering/city-landmark'
-import { STOREY_HEIGHT,wallLength as floorWallLength,type MultiStoreyPlan } from './multistorey'
+import { STOREY_HEIGHT,type MultiStoreyPlan } from './multistorey'
 import { house, lot } from './rendering/building'
+import { planSiteAccess } from './site-access'
+import { renderSite } from './rendering/site'
 
 type Target = Purpose | 'landmark' | 'mayor' | 'resident' | 'baker' | 'nika'
-type Citizen = {actor:T.Group; legs:T.Mesh[]; name:Target; stops:T.Vector3[]; index:number; resting:number; atDoor:boolean}
+type Citizen = {actor:T.Group; legs:T.Mesh[]; name:Target; stops:T.Vector3[]; index:number; resting:number; atDoor:boolean; doorStop:number|null}
 const origin=(purpose:Purpose)=>vec(lots[purpose].x-plot.width*unit/2,.045,lots[purpose].z-plot.depth*unit/2)
-function doorway(model:BuildingModel){
-  const opening=model.openings.find(o=>o.kind==='door'),wall=model.walls.find(w=>w.id===opening?.wallId)
-  if(!opening||!wall)return origin(model.purpose)
-  const t=opening.offset/wallLength(wall)
-  const x=T.MathUtils.lerp(wall.a[0],wall.b[0],t),z=T.MathUtils.lerp(wall.a[1],wall.b[1],t)
-  const pts=model.walls.flatMap(w=>[w.a,w.b])
-  const nx=wall.a[0]===wall.b[0]?(x===Math.min(...pts.map(p=>p[0]))?-1:1):0
-  const nz=wall.a[1]===wall.b[1]?(z===Math.min(...pts.map(p=>p[1]))?-1:1):0
-  return origin(model.purpose).add(vec((x+nx*.72)*unit,0,(z+nz*.72)*unit))
-}
 const landmarkOrigin=()=>vec(landmarkLot.x-plot.width*unit/2,.045,landmarkLot.z-plot.depth*unit/2)
-function landmarkDoorway(plan:MultiStoreyPlan) {
-  const ground=plan.floors[0],opening=ground.openings.find(o=>o.kind==='door'&&ground.walls.some(w=>w.id===o.wallId))
-  const wall=ground.walls.find(w=>w.id===opening?.wallId)
-  if(!opening||!wall)return vec(landmarkLot.x,.05,landmarkLot.z)
-  const t=opening.offset/floorWallLength(wall)
-  const x=T.MathUtils.lerp(wall.a[0],wall.b[0],t),z=T.MathUtils.lerp(wall.a[1],wall.b[1],t)
-  const xs=ground.walls.flatMap(w=>[w.a[0],w.b[0]]),zs=ground.walls.flatMap(w=>[w.a[1],w.b[1]])
-  const nx=wall.a[0]===wall.b[0]?(x===Math.min(...xs)?-1:1):0
-  const nz=wall.a[1]===wall.b[1]?(z===Math.min(...zs)?-1:1):0
-  return landmarkOrigin().add(vec((x+nx*.75)*unit,0,(z+nz*.75)*unit))
+function accessRoute(access:NonNullable<ReturnType<typeof planSiteAccess>>){
+  // NPC stops just outside the door, at the point on the new paving.
+  return access.route.slice(0,-1).map(p=>vec(p.x,.05,p.z))
+}
+function returnStops(route:T.Vector3[],home:T.Vector3){
+  // Go out along the SAME private path; never walk through the footprint.
+  return [...route,...route.slice(0,-1).reverse().map(p=>p.clone()),home]
 }
 function resident(name:Target,coat:number):Citizen {
   const a=new Artist(),apron=name==='baker',skin=name==='mayor'?0xc99871:0xe2b28c
@@ -55,7 +44,7 @@ function resident(name:Target,coat:number):Citizen {
     const leg=new T.Mesh(shapes.box,mat);leg.position.set(s*.084,.40,0);leg.scale.set(.12,.60,.15)
     leg.castShadow=true;actor.add(leg);legs.push(leg)
   }
-  return {actor,legs,name,stops:[],index:0,resting:0,atDoor:false}
+  return {actor,legs,name,stops:[],index:0,resting:0,atDoor:false,doorStop:null}
 }
 
 export class Valley{
@@ -167,6 +156,10 @@ export class Valley{
       const plan=world.careerPlans[purpose]
       const group=model?(plan?cityLandmark(plan,p,world.theme):house(model,p,true,world.theme)):lot(p,focus===purpose)
       group.scale.setScalar(unit);group.position.copy(base);this.objects.add(group)
+      if(model){
+        const access=planSiteAccess(purpose,plan?.floors[0]??model)
+        if(access)this.objects.add(renderSite(access,p))
+      }
       this.glass.push(...(group.userData.glass??[]))
       if(group.userData.chimney){
         this.chimney=group.userData.chimney.clone().multiplyScalar(unit).add(base)
@@ -179,6 +172,10 @@ export class Valley{
       const plan=world.landmark
       const extra=plan?cityLandmark(plan,p,world.theme):lot(p,focus==='landmark')
       extra.scale.setScalar(unit);extra.position.copy(landmarkOrigin());this.objects.add(extra)
+      if(plan){
+        const access=planSiteAccess('landmark',plan.floors[0])
+        if(access)this.objects.add(renderSite(access,p))
+      }
       const height=plan?plan.floors.length*STOREY_HEIGHT*unit:0
       this.addHit('landmark',vec(landmarkLot.x,plan?height/2:.12,landmarkLot.z),
         vec(plot.width*unit,plan?height+.4:.35,plot.depth*unit))
@@ -190,13 +187,26 @@ export class Valley{
       person.actor.position.copy(first)
       const model=person.name==='resident'?world.buildings.home:person.name==='baker'?world.buildings.bakery:undefined
       if(model){
-        const porch=doorway(model),street=vec(lots[model.purpose].x,.05,model.purpose==='home'?.5:5.3)
-        person.stops=[street,porch,street,first];person.atDoor=false
+        const access=planSiteAccess(model.purpose,world.careerPlans[model.purpose]?.floors[0]??model)
+        if(access){
+          const route=accessRoute(access)
+          person.doorStop=route.length-1
+          person.stops=returnStops(route,first)
+        }
       }else if(person.name==='nika'&&world.landmark){
-        const street=vec(landmarkLot.x,.05,landmarkLot.z+4.1)
-        person.stops=[street,landmarkDoorway(world.landmark),street,first]
-      }else{person.stops=[first,first.clone().add(vec(1.4,0,.38)),first.clone().add(vec(-.65,0,.55))]}
-      if(person===mayor&&world.buildings.bakery)person.stops.push(vec(12,.05,4),vec(15,.05,5.2),doorway(world.buildings.bakery),vec(13,.05,4.8))
+        const access=planSiteAccess('landmark',world.landmark.floors[0])
+        if(access){
+          const route=accessRoute(access)
+          person.doorStop=route.length-1
+          person.stops=returnStops(route,first)
+        }
+      }
+      if(!person.stops.length)
+        person.stops=[first,first.clone().add(vec(1.4,0,.38)),first.clone().add(vec(-.65,0,.55))]
+      if(person===mayor&&world.buildings.bakery){
+        const access=planSiteAccess('bakery',world.careerPlans.bakery?.floors[0]??world.buildings.bakery)
+        if(access)person.stops.push(vec(12,.05,4),...accessRoute(access),vec(13,.05,4.8))
+      }
       this.citizens.push(person);this.objects.add(person.actor)
       this.addHit(person.name,vec(0,.80,0),vec(.85,1.65,.85),person.actor)
     }
@@ -246,8 +256,9 @@ export class Valley{
         citizen.actor.visible=true
         const dest=citizen.stops[citizen.index],delta=dest.clone().sub(citizen.actor.position),distance=delta.length()
         if(distance<.08){
-          const working=citizen.name==='baker'&&citizen.index===1
-          citizen.atDoor=(citizen.name==='resident'||citizen.name==='nika')&&citizen.index===1&&citizen.stops.length===4
+          const working=citizen.name==='baker'&&citizen.doorStop!==null&&citizen.index===citizen.doorStop
+          citizen.atDoor=(citizen.name==='resident'||citizen.name==='nika')&&
+            citizen.doorStop!==null&&citizen.index===citizen.doorStop
           citizen.actor.visible=!citizen.atDoor;citizen.resting=working?11:citizen.atDoor?6:2
           citizen.index=(citizen.index+1)%citizen.stops.length
           citizen.legs.forEach(l=>l.rotation.x=0)
