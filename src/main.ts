@@ -77,7 +77,7 @@ function show(next:Screen){
   let content=''
   if(next==='city'){
     content=q?`<div class="eyebrow">Заказ ${progress+1} из 2 · ${copy[q].client}</div><h2>${copy[q].name}</h2><p>${world.accepted?'Заказ принят. Участок ждёт вашего проекта.':q==='home'?'Эмма ждёт вас у площади.':'Пекарь Лев хочет открыть дело в долине.'}</p>${button(world.accepted?'plot':'order',world.accepted?'К строительству':'Поговорить','next')}`:
-    `<div class="eyebrow">Глава I завершена · Свободное творчество</div><h2>${world.landmark?'Город становится больше':'Для Ники нужен дом'}</h2><p>${world.landmark?
+    `<div class="eyebrow">Глава I завершена · Свободное творчество</div><h2>Долина ожила${world.landmark?' — дом Ники готов':''}</h2><p>${world.landmark?
       `Ника поселилась в доме архитектора: ${world.landmark.floors.length} эт., ${totalArea(world.landmark)} м². Можно улучшить план в мастерской.`:
       'Эмма и Лев обжились. На третьем участке Ника ждёт дом твоего проекта — с перегородками, лестницами и настоящими этажами.'}</p>
       ${button('workshop',world.landmark?'Улучшить дом Ники':'Создать дом Ники','build')}
