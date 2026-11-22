@@ -3,6 +3,7 @@ import {Artist,custom,random,shade,vec,type Palette} from './art'
 import {townHall,bench,fountain} from './town'
 
 export const lots={home:{x:-10.3,z:-4.2},bakery:{x:15.4,z:1.2}}
+export const landmarkLot={x:-22,z:-8}
 export const unit=.65
 const river=(x:number)=>8.4+Math.sin(x*.117)*1.37+x*.112
 const channel=(x:number,z:number)=>Math.abs(z-river(x))
@@ -119,6 +120,7 @@ export function landscape(p:Palette,theme:number) {
   path(a,[[2.1,river(2.1)-3.27],[2.1,5.1],[1.6,3.6],[.3,2.4]],2.14,road,true)
   path(a,[[2.1,river(2.1)+3.27],[1.7,14.3],[-1.4,16.6],[-6.2,19.4],[-10,25],[-12,31]],2.16,road,true)
   path(a,[[5.7,2.8],[6.22,1.1],[6.22,-.1]],1.75,road,true)
+  path(a,[[-22.3,-3.3],[-22.1,-4.1],[-22,-4.85]],1.15,road,true)
   a.put('cylinder',-.4,.045,.98,6.7,.095,5.77,road)
   for(let i=0;i<570;i++){
     const x=(rng()-.5)*6.5-.4,z=(rng()-.5)*5.3+.98
@@ -130,6 +132,7 @@ export function landscape(p:Palette,theme:number) {
     const x=(rng()-.5)*108,z=(rng()-.6)*74
     const forest=z<-11||Math.abs(x)>22||z>19
     if(!forest||channel(x,z)<3.3||Math.abs(x+11)<2&&z>20)continue
+    if(x>-28&&x<-16&&z>-15&&z<-2)continue // Clear the new architect's site.
     if(z>11&&z<23&&Math.abs(x)<19)continue
     if(z>13&&x>4&&x<23)continue
     tree(a,x,z,2.1+rng()*3.95,p,rng,z<-17?rng()<.64:rng()<.20)

@@ -4,6 +4,7 @@ import { Valley } from './rendering'
 import { freshWorld, newModel, currentQuest, complete, issues, cost, area, rules, type Purpose } from './model'
 import { clear, load, save } from './storage'
 import { renderEditor } from './editor'
+import { totalArea, estimate } from './multistorey'
 
 type Screen = 'menu'|'city'|'plot'|'editor'|'preview'|'finished'
 const app = document.querySelector<HTMLElement>('#app')!
@@ -33,6 +34,13 @@ let valley:Valley
 try { valley=new Valley(worldHost,target=>{
   if(modal.open || (screen!=='city' && screen!=='plot')) return
   const q=quest()
+  if((target==='landmark'||target==='nika')&&world.buildings.bakery){
+    const plan=world.landmark
+    popup(plan?'Дом мечты Ники':'Свободный участок Ники',
+      plan?`<p>Ника поселилась в вашем доме. Этажей: ${plan.floors.length}, общая площадь: ${totalArea(plan)} м².</p><div class="stats"><span class="chip">Смета ${estimate(plan).total}</span><span class="chip">Построен архитектором</span></div>${button('workshop','Изменить проект','build')}`:
+      `<p>Здесь может появиться дом, который ты спроектируешь в свободной многоэтажной мастерской. Ника ждёт твоего решения!</p>${button('workshop','Создать дом','build')}`)
+    return
+  }
   if((target==='home'||target==='bakery') && world.buildings[target]){
     popup(copy[target].name,`<p>${copy[target].client} · ${area(world.buildings[target]!)} м²</p>`);return
   }
@@ -69,7 +77,11 @@ function show(next:Screen){
   let content=''
   if(next==='city'){
     content=q?`<div class="eyebrow">Заказ ${progress+1} из 2 · ${copy[q].client}</div><h2>${copy[q].name}</h2><p>${world.accepted?'Заказ принят. Участок ждёт вашего проекта.':q==='home'?'Эмма ждёт вас у площади.':'Пекарь Лев хочет открыть дело в долине.'}</p>${button(world.accepted?'plot':'order',world.accepted?'К строительству':'Поговорить','next')}`:
-    `<div class="eyebrow">Глава I завершена</div><h2>Долина ожила</h2><p>Эмма обживает свой дом, а Лев встречает гостей в пекарне.</p>${button('journal','Журнал заказов','book')}`
+    `<div class="eyebrow">Глава I завершена · Свободное творчество</div><h2>Долина ожила${world.landmark?' — дом Ники готов':''}</h2><p>${world.landmark?
+      `Ника поселилась в доме архитектора: ${world.landmark.floors.length} эт., ${totalArea(world.landmark)} м². Можно улучшить план в мастерской.`:
+      'Эмма и Лев обжились. На третьем участке Ника ждёт дом твоего проекта — с перегородками, лестницами и настоящими этажами.'}</p>
+      ${button('workshop',world.landmark?'Улучшить дом Ники':'Создать дом Ники','build')}
+      <div class="row" style="margin-top:8px">${button('journal','Журнал заказов','book','minor')}</div>`
   }else if(next==='plot' && q){
     content=`<div class="eyebrow">Участок для строительства</div><h2>${copy[q].place}</h2><div class="stats"><span class="chip">12 × 10 м</span><span class="chip">Есть дорожка</span><span class="chip">Свободен</span></div>${button('edit','Открыть планировщик','build')}`
   }else if(next==='preview' && world.draft){
@@ -78,7 +90,7 @@ function show(next:Screen){
   }else if(next==='finished'){
     content=`<div class="eyebrow">Заказ выполнен · +${rules[finished].reward} ★</div><h2>${copy[finished].name}</h2><p>"${copy[finished].thanks}"<br>- ${copy[finished].client}</p>${button('city','Вернуться в город','map')}`
   }
-  app.innerHTML=header+`<section class="sheet">${content}</section><div class="status-pill">Построено · ${progress} / 2</div>`
+  app.innerHTML=header+`<section class="sheet">${content}</section><div class="status-pill">Построено · ${progress} / 2${world.landmark?' · Дом Ники':''}</div>`
 }
 function popup(title:string,body:string){
   if(!modal.open) focusBefore=document.activeElement instanceof HTMLElement?document.activeElement:null
@@ -96,7 +108,9 @@ function order(q:Purpose){
   popup(copy[q].name,`<div class="eyebrow">${copy[q].client}</div><p>"${copy[q].line}"</p><div class="stats"><span class="chip">От ${rules[q].minArea} м²</span><span class="chip">Окон от ${rules[q].windows}</span><span class="chip">Бюджет ${rules[q].budget}</span></div><p>Замкните стены и предусмотрите входную дверь.</p>${button('accept','Принять заказ','check')}`)
 }
 function journal(){
-  popup('Журнал заказов',(['home','bakery'] as const).map(q=>`<div class="journal-item"><strong>${copy[q].name}</strong><small>${world.buildings[q]?'Выполнен':quest()===q?(world.accepted?'В работе':'Доступен'):'После дома Эммы'}</small></div>`).join('')+`<p>Награды архитектора · ${world.rewards} ★</p>`)
+  const records=(['home','bakery'] as const).map(q=>`<div class="journal-item"><strong>${copy[q].name}</strong><small>${world.buildings[q]?'Выполнен':quest()===q?(world.accepted?'В работе':'Доступен'):'После дома Эммы'}</small></div>`).join('')
+  const architect=`<div class="journal-item"><strong>Дом мечты Ники</strong><small>${world.landmark?'Построен · '+world.landmark.floors.length+' эт.':world.buildings.bakery?'Открыт участок':'После пекарни'}</small></div>`
+  popup('Журнал заказов',records+architect+`<p>Награды архитектора · ${world.rewards} ★</p>`)
 }
 const palettes=[
   ['#bfd5ca','#719375','#45684e','#eee1c5','#995e41'],['#c6e6fa','#88b992','#388960','#f7d88c','#cb685c'],
@@ -157,4 +171,4 @@ document.addEventListener('click',event=>{
   const target=event.target
   if(target instanceof Element){const el=target.closest<HTMLButtonElement>('button[data-action]');if(el&&!el.disabled)act(el.dataset.action!)}
 })
-show('menu')
+show(new URLSearchParams(location.search).get('city')==='1'&&saved?'city':'menu')
