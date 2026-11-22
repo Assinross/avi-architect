@@ -26,7 +26,7 @@ function residence():MultiStoreyPlan {
   return upstairs
 }
 
-describe('City landmark placement and save migration',()=>{
+describe('City landmark placement and development-only saves',()=>{
   it('requires completed city quests and a structurally valid, habitable plan',()=>{
     const plan=residence()
     expect(isCityLandmark(plan)).toBe(true)
@@ -40,15 +40,13 @@ describe('City landmark placement and save migration',()=>{
     expect(()=>publishLandmark(world,{floors:[]})).toThrow()
     expect(CITY_MAX_FLOORS).toBeGreaterThanOrEqual(10)
   })
-  it('upgrades a legacy v1 city without losing houses or rewards',()=>{
-    const legacy=doneCity()
-    const {landmark:ignored,...oldWorld}=legacy
-    void ignored
-    const migrated=decode(JSON.stringify({version:1,world:oldWorld}))
-    expect(migrated).toEqual(legacy)
-    expect(migrated?.landmark).toBeNull()
+  it('deliberately rejects old save formats instead of migrating them',()=>{
+    const city=doneCity()
+    expect(decode(JSON.stringify({version:1,world:city}))).toBeNull()
+    expect(decode(JSON.stringify({version:2,world:city}))).toBeNull()
+    expect(decode(JSON.stringify({version:3,world:city}))).toEqual(city)
   })
-  it('persists the published plan in the v2 city save and rejects tampering',()=>{
+  it('persists the published plan in the current city save and rejects tampering',()=>{
     const memory=new Map<string,string>()
     vi.stubGlobal('localStorage',{
       getItem:(key:string)=>memory.get(key)??null,
@@ -58,7 +56,7 @@ describe('City landmark placement and save migration',()=>{
     try {
       const city=publishLandmark(doneCity(),residence())
       expect(save(city)).toBe(true)
-      expect(JSON.parse(memory.get(saveKey)!).version).toBe(2)
+      expect(JSON.parse(memory.get(saveKey)!).version).toBe(3)
       expect(load()).toEqual(city)
       const broken=structuredClone(city)
       broken.landmark!.floors[0].walls[0].a=[-1,1]
