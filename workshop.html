@@ -37,11 +37,12 @@ body.career.show-preview .workspace{grid-template-columns:minmax(250px,294px) mi
 <div class="workspace">
  <aside class="panel">
   <div class="section"><div class="kicker">Свободное проектирование</div><h2 id="mainHeading">Мой дом мечты</h2><p id="modeDescription">Создавай этажи разной площади, планируй лестницы и комнаты. Колонны и крыши рассчитываются автоматически.</p></div>
-  <div class="section"><h3 class="small-title">Этажи <span class="badge" id="floorcount">1</span></h3><div class="floor-list" id="floors"></div><div class="two" style="margin-top:9px"><button class="button primary" id="add">＋ Этаж</button><button class="button" id="remove">− Верхний</button></div></div>
+    <div class="section"><h3 class="small-title">Этажи <span class="badge" id="floorcount">1</span></h3><div class="floor-list" id="floors"></div><div class="two" style="margin-top:9px"><button class="button primary" id="add">＋ Этаж</button><button class="button" id="remove">− Верхний</button></div></div>
   <div class="section"><h3 class="small-title">Наружные стены: <span id="selectedFloor">1 этаж</span></h3><div class="dimensions"><label class="field">Начало X<input id="x0" type="number" min="0" max="11" step="1"></label><label class="field">Начало Z<input id="z0" type="number" min="0" max="9" step="1"></label><label class="field">Ширина, м<input id="w" type="number" min="1" max="12" step="1"></label><label class="field">Глубина, м<input id="d" type="number" min="1" max="10" step="1"></label></div><p>Изменяй габариты этажа. Положение колонн и крыши перестраивается автоматически.</p></div>
   <div class="section"><h3 class="small-title">Инструменты плана</h3><div class="tool-grid" id="tools"><button class="button" data-tool="inspect">Выделить / двигать</button><button class="button" data-tool="outline">Контур комнаты</button><button class="button" data-tool="partition">Стена / перегородка</button><button class="button" data-tool="stairs">Лестница ↑</button><button class="button" data-tool="door">Дверь</button><button class="button" data-tool="window">Окно</button><button class="button" data-tool="erase">Удалить</button></div><label class="field" style="margin-top:10px">Тип лестницы<select id="stairKind" class="button" aria-label="Тип лестницы"><option value="straight">Обычная · 2 клетки</option><option value="spiral">Винтовая · 1 клетка</option></select></label><label class="field" style="margin-top:10px">Направление лестницы<select id="stairFacing" class="button" aria-label="Направление лестницы"><option value="north">↑ Север</option><option value="south">↓ Юг</option><option value="east">→ Восток</option><option value="west">← Запад</option></select></label><div class="status" id="status">Перетащи внешнюю стену, чтобы изменить размер комнаты без разрыва контура. Стены можно рисовать удерживанием и перетаскиванием.</div></div>
   <div class="section"><h3 class="small-title">Стиль дома</h3><label class="field" for="buildingStyle">Оформление фасада<select id="buildingStyle" class="button" aria-label="Стиль дома"><option value="classic">Классический · черепица и цветы</option><option value="modern">Современный · стеклянная веранда</option></select></label><p>Меняет только 3D-оформление, без изменения сметы и плана.</p></div>
-   <div class="section" id="careerReview" hidden><h3 class="small-title">Проверка заказа</h3><div class="checklist" style="padding:0"><ul id="careerChecks"></ul></div></div>
+  <div class="section"><h3 class="small-title">Чему учимся</h3><div class="ed-inline-lesson"><strong id="learningTitle">Свободное проектирование</strong><p id="learningObjective"></p><p class="ed-idea-small" id="learningExperiment"></p><button class="button" style="width:100%;margin-top:10px" id="knowledge">📖 Книга архитектора</button></div></div>
+  <div class="section" id="careerReview" hidden><h3 class="small-title">Проверка заказа</h3><div class="checklist" style="padding:0"><ul id="careerChecks"></ul></div></div>
   <div class="section"><h3 class="small-title">Смета проекта</h3><div id="estimate"></div></div>
  </aside>
  <main class="panel">
@@ -59,6 +60,9 @@ body.career.show-preview .workspace{grid-template-columns:minmax(250px,294px) mi
 </div>
 </div>
 <div id="toast" class="toast" hidden></div>
+<dialog id="learningDialog" class="ed-dialog" aria-label="Книга архитектора">
+ <div class="ed-dialog-head"><h2>Книга архитектора</h2><button type="button" data-action="close">Закрыть</button></div>
+</dialog>
 <script type="module" src="/src/workshop.js"></script>
 </body>
 </html>

@@ -1,9 +1,11 @@
+import './education.css';
 import * as Engine from './multistorey';
 import { MultiStoreyView } from './rendering/multistorey';
 import { load as loadCity, save as saveCity } from './storage';
 import { publishLandmark } from './city-landmark';
 import { builderIssues, commissionModel, profiles } from './builder-policy';
 import { complete, currentQuest } from './model';
+import { lessons,bookMarkup,storyMarkup,storyById,recordLearning,readLearning,checkAnswer,installPhotoFallback } from './education';
 import * as Gestures from './plan-interactions';
 (function(){
 'use strict';
@@ -21,6 +23,10 @@ $('modeDescription').textContent=mode==='free'
   :mode==='home'?'Первый заказ: научись менять контур дома, добавлять вход и окна. Перегородки и этажи откроются позже.'
   :mode==='bakery'?'Второй заказ: теперь доступны внутренние перегородки. Этажи и лестницы откроются после пекарни.'
   :'Третий заказ: многоэтажность открыта. Спроектируй двухэтажный дом со ступенями и рассчитай бюджет.';
+const lesson=mode==='free'?null:lessons[mode];
+$('learningTitle').textContent=lesson?.title||'Экспериментируй без ограничений';
+$('learningObjective').textContent=lesson?.objective||'Проверяй размеры, материалы и форму здания в 3D. Любая идея допустима, если конструкция проходит проверку.';
+$('learningExperiment').textContent='Попробуй: '+(lesson?.experiment||'построить два дома одинаковой площади, но разного периметра. Какая смета окажется меньше?');
 const cell=36, bx=60, by=48;
 const px=x=>bx+x*cell, py=z=>by+z*cell;
 const rectFloor=(x0,z0,x1,z1,index)=>({walls:[
@@ -29,6 +35,45 @@ const rectFloor=(x0,z0,x1,z1,index)=>({walls:[
 ],openings:[],partitions:[],stairToNext:null});
 const starter=mode==='home'?rectFloor(2,2,6,5,0):mode==='bakery'?rectFloor(2,2,7,6,0):rectFloor(1,1,8,7,0);
 let project={floors:[starter],style:'classic'}, active=0,tool='inspect',start=null,past=[],future=[];
+const learningDialog=$('learningDialog');
+const learningStatus=()=>{
+ const city=loadCity()
+ return {home:Boolean(city?.buildings.home),bakery:Boolean(city?.buildings.bakery),
+   landmark:Boolean(city?.landmark)}
+};
+function showLearning(body,title){
+ learningDialog.innerHTML=`<div class="ed-dialog-head"><h2>${title}</h2>
+ <button type="button" data-action="close">✕ Закрыть</button></div>${body}`;
+ installPhotoFallback(learningDialog);
+ if(!learningDialog.open)learningDialog.showModal();
+}
+function openBook(){showLearning(bookMarkup(learningStatus(),readLearning()),'Книга архитектора')}
+function openStory(id){
+ const story=storyById(id);if(!story)return;
+ recordLearning(story.id,'read');
+ showLearning(storyMarkup(story,readLearning()),story.title);
+}
+$('knowledge').addEventListener('click',openBook);
+learningDialog.addEventListener('cancel',event=>{event.preventDefault();learningDialog.close()});
+learningDialog.addEventListener('click',event=>{
+ const button=event.target.closest('button[data-action]');if(!button)return;
+ const action=button.dataset.action;
+ if(action==='close'){learningDialog.close();return}
+ if(action==='book'){openBook();return}
+ if(action?.startsWith('story-')){openStory(action.slice(6));return}
+ const answer=action?.match(/^answer-([a-z]+)-([01])$/);
+ if(answer){
+   const story=storyById(answer[1]);if(!story)return;
+   if(checkAnswer(story.id,Number(answer[2]))){
+     recordLearning(story.id,'solved');openStory(story.id);
+   }else{
+     const feedback=learningDialog.querySelector('.ed-feedback');
+     if(feedback){feedback.textContent='Почти! Посмотри ещё раз на фото и попробуй другой ответ.';
+       feedback.classList.add('wrong')}
+   }
+ }
+});
+
 try {
   const saved=JSON.parse(localStorage.getItem(key)||'null');
   if(isSafePlan(saved))project=saved;
@@ -485,7 +530,7 @@ $('publish').addEventListener('click',()=>{
     const next=publishLandmark(city,project);
     if(city.landmark&&!confirm('Заменить ранее построенный дом Ники новым проектом?'))return;
     if(!saveCity(next))throw Error('Не удалось сохранить дом в городе.');
-    window.location.assign(new URL('./?city=1',document.baseURI).href);
+    window.location.assign(new URL(mode==='landmark'?'./?city=1&discovery=nika':'./?city=1',document.baseURI).href);
   }catch(error){message(error.message||'Исправь план перед сдачей заказа.');}
 });
 paint();

@@ -2,6 +2,9 @@ import {test,expect,type Page} from '@playwright/test'
 
 /** Convert metre-grid coordinates to actual screen pixels at any responsive size. */
 async function dragGrid(page:Page,from:[number,number],to:[number,number]){
+  // Choosing a tool in the sidebar may scroll the entire document. A real
+  // player returns the plan to view before dragging; simulate that explicitly.
+  await page.locator('#plan').scrollIntoViewIfNeeded()
   const [start,end]=await page.locator('#plan').evaluate((svg,coords)=>{
     const matrix=(svg as SVGSVGElement).getScreenCTM()!
     return coords.map(([x,z])=>{

@@ -1,0 +1,66 @@
+/* Educational stories, lessons and book of architecture. Shared by city and workshop. */
+.ed-feature{border:1px solid #d9c9a5;border-radius:14px;background:#f9f2df;padding:12px;margin:16px 0;color:#344e3d;overflow:hidden}
+.ed-feature-top{display:flex;justify-content:space-between;gap:8px;color:#986b3d;text-transform:uppercase;font-size:10px;letter-spacing:.08em;font-weight:800;margin-bottom:10px}
+.ed-feature .ed-photo{width:100%;height:135px;object-fit:cover;display:block;border-radius:9px;background:linear-gradient(140deg,#b6c9b1,#d5b998)}
+.ed-feature-copy strong{display:block;font:600 20px Georgia,serif;margin:10px 0 5px}
+.ed-feature-copy p{font-size:13px;line-height:1.5;margin:4px 0 10px}
+.ed-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;border:1px solid #375f4c;border-radius:8px;background:#375f4c;color:#fff;padding:10px 13px;font-size:13px;font-weight:700;min-height:42px}
+.ed-button:hover{filter:brightness(1.12)}
+.ed-button.subtle{color:#375f4c;background:#f9f7ef;border-color:#b9c8b9}
+.ed-learning{padding:10px;border-radius:8px;background:#e3ede0;font-size:12px;line-height:1.5;margin:10px 0 0!important}
+.sheet.lesson-finished{width:min(450px,calc(100% - 24px));max-height:min(83dvh,850px);overflow:auto}
+.sheet.lesson-finished h2{font-size:26px}
+dialog.ed-expanded{width:min(740px,calc(100% - 24px));padding:clamp(14px,3vw,26px)}
+.ed-story,.ed-book{color:#304b3b;font-size:14px}
+.ed-story h3,.ed-book h3{font:600 22px/1.15 Georgia,serif;margin:14px 0 9px}
+.ed-hero{margin:12px 0;overflow:hidden;border-radius:13px;background:#b2c7b6}
+.ed-hero .ed-photo{display:block;width:100%;height:clamp(190px,36vh,365px);object-fit:cover}
+.ed-meta{font-size:11px!important;color:#87704e;text-transform:uppercase;letter-spacing:.08em;margin:8px 0}
+.ed-intro{font-weight:600;color:#375b48}
+.ed-story p{line-height:1.65}
+.ed-idea{background:#e8f0e5;border:1px solid #d1e0ca;border-radius:10px;padding:12px 15px;margin:15px 0}
+.ed-idea p{margin:4px 0 0}
+.ed-quiz{padding:14px;background:#f7f0dd;border:1px solid #e5d6b8;border-radius:12px}
+.ed-quiz p{margin:6px 0 12px}
+.ed-answers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ed-answers button{cursor:pointer;background:#fffdfa;border:1px solid #b7c6b2;border-radius:9px;color:#365742;min-height:48px;text-align:left;padding:10px;font-size:13px;font-weight:600}
+.ed-answers button:hover{background:#e7efe3}
+.ed-answers button:disabled{opacity:.6;cursor:default}
+.ed-feedback{color:#397251;font-weight:600;font-size:13px;min-height:1.2em}
+.ed-feedback.wrong{color:#9b6247}
+.ed-credit{font-size:11px;color:#788377;line-height:1.5}
+.ed-credit a{color:#356d69;text-decoration:underline}
+.ed-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.ed-progress{display:flex;align-items:center;gap:14px;background:#e7f1e4;border-radius:12px;padding:14px 16px;margin:14px 0}
+.ed-progress strong{font:600 25px Georgia,serif;white-space:nowrap}
+.ed-progress span{font-size:12px;line-height:1.4}
+.ed-skills{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 20px}
+.ed-skill{font-size:12px;border-radius:100px;background:#eee8d8;border:1px solid #e0d8c4;padding:7px 10px}
+.ed-skill.done{background:#dbead9;border-color:#9ebc9e}
+.ed-collection{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.ed-tile{text-align:left;border:1px solid #d4ddce;border-radius:12px;overflow:hidden;padding:0;background:#fffdf5;color:#304d3a;cursor:pointer;display:flex;flex-direction:column}
+.ed-tile:hover{border-color:#76a086;box-shadow:0 3px 12px #284c2d19;transform:translateY(-1px)}
+.ed-tile .ed-photo{width:100%;height:135px;object-fit:cover;background:#d0dac7;display:block}
+.ed-tile span{display:grid;gap:5px;padding:12px;flex:1}
+.ed-tile b{font:600 19px Georgia,serif}
+.ed-tile small{font-size:12px;color:#68766a;line-height:1.35}
+.ed-tile em{font-size:11px;color:#46835b;font-style:normal;margin-top:7px;font-weight:700}
+.ed-footnote{font-size:12px;color:#758275;line-height:1.55;margin:16px 0}
+dialog.ed-dialog{max-width:min(760px,calc(100% - 20px));width:760px;max-height:91dvh;overflow:auto;padding:clamp(15px,3vw,26px);border:1px solid #c5d0be;border-radius:15px;box-shadow:0 20px 80px #152b1d60;background:#fffdf4;color:#2f4c3a}
+dialog.ed-dialog::backdrop{background:#16302191;backdrop-filter:blur(4px)}
+.ed-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:15px}
+.ed-dialog-head h2{font:600 27px Georgia,serif;margin:0}
+.ed-dialog-head button{border-radius:9px;background:#e7ede2;border:1px solid #c2d0bf;color:#385441;min-height:36px;padding:7px 11px;cursor:pointer}
+.ed-inline-lesson{background:#f4f1e4;border:1px solid #e2d8b9;border-radius:10px;padding:13px}
+.ed-inline-lesson strong{font:600 17px Georgia,serif}
+.ed-inline-lesson p{margin:8px 0;font-size:12px;color:#4e624f;line-height:1.5}
+.ed-inline-lesson .ed-idea-small{border-left:3px solid #a5bba1;padding-left:9px}
+@media(max-width:620px){
+ .ed-collection{grid-template-columns:1fr}
+ .ed-tile{display:grid;grid-template-columns:110px 1fr}
+ .ed-tile .ed-photo{height:100%;min-height:125px}
+ .ed-tile b{font-size:17px}
+ .ed-answers{grid-template-columns:1fr}
+ .ed-feature-top{flex-wrap:wrap}
+ .sheet.lesson-finished{max-height:70dvh}
+}
