@@ -13,7 +13,7 @@ test('Два заказа, редактирование, награды и во�
   await expect(action(page,'continue')).toBeDisabled()
   await action(page,'themes').click()
   await action(page,'theme-1').click()
-  await action(page,'close').click()
+  await page.getByRole('button',{name:'Готово'}).click()
   await action(page,'new').click()
   for(const purpose of ['home','bakery'] as const){
     await action(page,'order').click()
@@ -78,7 +78,7 @@ test.describe('Сенсорный планшет',()=>{
     await editor(page,'city').tap()
     await action(page,'settings').tap()
     await action(page,'reset').tap()
-    await action(page,'close').tap()
+    await page.getByRole('button',{name:'Отмена'}).tap()
     expect((await world(page)).draft).toEqual(before)
     await action(page,'settings').tap()
     await action(page,'reset').tap()
