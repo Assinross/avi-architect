@@ -164,7 +164,8 @@ export class Valley{
     this.terrain.visible=true;this.clearObjects()
     for(const purpose of ['home','bakery'] as const){
       const model=world.buildings[purpose],base=origin(purpose)
-      const group=model?house(model,p,true,world.theme):lot(p,focus===purpose)
+      const plan=world.careerPlans[purpose]
+      const group=model?(plan?cityLandmark(plan,p,world.theme):house(model,p,true,world.theme)):lot(p,focus===purpose)
       group.scale.setScalar(unit);group.position.copy(base);this.objects.add(group)
       this.glass.push(...(group.userData.glass??[]))
       if(group.userData.chimney){

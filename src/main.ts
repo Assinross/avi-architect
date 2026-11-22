@@ -1,12 +1,11 @@
 import './style.css'
 import { emblem, icon } from './icons'
 import { Valley } from './rendering'
-import { freshWorld, newModel, currentQuest, complete, issues, cost, area, rules, type Purpose } from './model'
+import { freshWorld, currentQuest, area, rules, type Purpose } from './model'
 import { clear, load, save } from './storage'
-import { renderEditor } from './editor'
 import { totalArea, estimate } from './multistorey'
 
-type Screen = 'menu'|'city'|'plot'|'editor'|'preview'|'finished'
+type Screen = 'menu'|'city'|'plot'|'finished'
 const app = document.querySelector<HTMLElement>('#app')!
 const modal = document.querySelector<HTMLDialogElement>('#modal')!
 const worldHost = document.querySelector<HTMLElement>('#world')!
@@ -19,7 +18,6 @@ let saved = load()
 let world = saved ?? freshWorld()
 let screen:Screen='menu'
 let finished:Purpose='home'
-let roof=true
 let warned=false
 let focusBefore:HTMLElement|null=null
 const button=(action:string,label:string,glyph:string,cls='btn')=>`<button class="${cls}" data-action="${action}">${icon(glyph)}${label}</button>`
@@ -37,8 +35,8 @@ try { valley=new Valley(worldHost,target=>{
   if((target==='landmark'||target==='nika')&&world.buildings.bakery){
     const plan=world.landmark
     popup(plan?'Дом мечты Ники':'Свободный участок Ники',
-      plan?`<p>Ника поселилась в вашем доме. Этажей: ${plan.floors.length}, общая площадь: ${totalArea(plan)} м².</p><div class="stats"><span class="chip">Смета ${estimate(plan).total}</span><span class="chip">Построен архитектором</span></div>${button('workshop','Изменить проект','build')}`:
-      `<p>Здесь может появиться дом, который ты спроектируешь в свободной многоэтажной мастерской. Ника ждёт твоего решения!</p>${button('workshop','Создать дом','build')}`)
+      plan?`<p>Ника поселилась в вашем доме. Этажей: ${plan.floors.length}, общая площадь: ${totalArea(plan)} м².</p><div class="stats"><span class="chip">Смета ${estimate(plan).total}</span><span class="chip">Построен архитектором</span></div>${button('nika','Изменить проект','build')}`:
+      `<p>Ника ждёт двухэтажный дом. В третьем заказе откроются этажи, лестницы и все инструменты планировки.</p>${button('nika','Принять заказ Ники','build')}`)
     return
   }
   if((target==='home'||target==='bakery') && world.buildings[target]){
@@ -53,17 +51,10 @@ try { valley=new Valley(worldHost,target=>{
 }
 function show(next:Screen){
   screen=next
-  app.classList.toggle('editing',next==='editor')
-  worldHost.hidden=next==='editor'
-  if(next==='editor' && world.draft){
-    valley.pause(true)
-    app.innerHTML=''
-    renderEditor(app,world.draft,model=>{world={...world,draft:model};persist()},()=>show('preview'),()=>show('city'))
-    return
-  }
+  app.classList.remove('editing')
+  worldHost.hidden=false
   valley.pause(false)
-  if(next==='preview' && world.draft)valley.preview(world.draft,world.theme,roof)
-  else valley.city(world,next==='plot'?quest()??undefined:next==='finished'?finished:undefined)
+  valley.city(world,next==='plot'?quest()??undefined:next==='finished'?finished:undefined)
   if(next==='menu'){
     app.innerHTML=`<section class="menu"><header class="mast">${brand('Архитектурная мастерская')}${button('help','<span>Справка</span>','help','ghost')}</header>
     <div class="hero"><div class="kicker">Глава I · Новая долина</div><h1 lang="en">Architects<br><em>of Time</em></h1><p>Спроектируйте первый дом и вдохните жизнь в город у реки.</p>
@@ -80,13 +71,10 @@ function show(next:Screen){
     `<div class="eyebrow">Глава I завершена · Свободное творчество</div><h2>Долина ожила${world.landmark?' — дом Ники готов':''}</h2><p>${world.landmark?
       `Ника поселилась в доме архитектора: ${world.landmark.floors.length} эт., ${totalArea(world.landmark)} м². Можно улучшить план в мастерской.`:
       'Эмма и Лев обжились. На третьем участке Ника ждёт дом твоего проекта — с перегородками, лестницами и настоящими этажами.'}</p>
-      ${button('workshop',world.landmark?'Улучшить дом Ники':'Создать дом Ники','build')}
+      ${button('nika',world.landmark?'Улучшить дом Ники':'Принять заказ Ники','build')}
       <div class="row" style="margin-top:8px">${button('journal','Журнал заказов','book','minor')}</div>`
   }else if(next==='plot' && q){
     content=`<div class="eyebrow">Участок для строительства</div><h2>${copy[q].place}</h2><div class="stats"><span class="chip">12 × 10 м</span><span class="chip">Есть дорожка</span><span class="chip">Свободен</span></div>${button('edit','Открыть планировщик','build')}`
-  }else if(next==='preview' && world.draft){
-    const m=world.draft
-    content=`<div class="eyebrow">Объём 3D · ${copy[m.purpose].client}</div><h2>${copy[m.purpose].name}</h2><div class="stats"><span class="chip">${area(m)} м²</span><span class="chip">Смета ${cost(m)} / ${rules[m.purpose].budget}</span></div><div class="row">${button('edit','План 2D','back','minor')}${button('roof',roof?'Скрыть крышу':'Показать крышу','build','minor')}</div><div class="modal-actions">${button('submit','Проверить и сдать','check')}</div>`
   }else if(next==='finished'){
     content=`<div class="eyebrow">Заказ выполнен · +${rules[finished].reward} ★</div><h2>${copy[finished].name}</h2><p>"${copy[finished].thanks}"<br>- ${copy[finished].client}</p>${button('city','Вернуться в город','map')}`
   }
@@ -100,7 +88,7 @@ function popup(title:string,body:string){
 }
 function close(){
   if(modal.open)modal.close()
-  valley.pause(screen==='editor')
+  valley.pause(false)
   focusBefore?.focus()
 }
 modal.addEventListener('cancel',event=>{event.preventDefault();close()})
@@ -130,7 +118,12 @@ modal.addEventListener('change',e=>{
     show(screen);valley.pause(true)
   }
 })
+function resetCareerDrafts(){
+  for(const quest of ['home','bakery','landmark'])
+    try{localStorage.removeItem(`avi-architect.career.${quest}.v1`)}catch{}
+}
 function start(){
+  resetCareerDrafts()
   world={...freshWorld(),theme:world.theme,quality:world.quality}
   persist();close();show('city')
 }
@@ -146,29 +139,29 @@ function act(action:string){
     case 'start':start();break
     case 'continue':if(saved){world=saved;show('city')}break
     case 'workshop':window.location.assign(new URL('./workshop.html',document.baseURI).href);break
+    case 'nika':if(world.buildings.bakery)window.location.assign(new URL('./workshop.html?mode=career&quest=landmark',document.baseURI).href);break
     case 'settings':settings();break
     case 'themes':themes();break
     case 'journal':journal();break
-    case 'help':popup('Мастерская архитектора','<p>Поверните долину мышью или одним пальцем. Колесо и щипок меняют масштаб. Перемещайте карту правой кнопкой мыши или двумя пальцами.</p><p>Примите заказ, выберите участок и соедините точки на плане. Поставьте дверь и окна, затем осмотрите здание в объёме.</p>'+button('close','Вернуться','back'));break
+    case 'help':popup('Мастерская архитектора','<p>В карьере инструменты открываются по заказам: сначала стены и проёмы, затем перегородки, потом лестницы и этажи. В свободной мастерской доступны все функции, а 3D обновляется сразу.</p>'+button('close','Вернуться','back'));break
     case 'order':if(q)order(q);break
     case 'accept':if(q){world={...world,accepted:true};persist();close();show('plot')}break
     case 'plot':show('plot');break
-    case 'edit':if(q&&world.accepted){if(!world.draft){world={...world,draft:newModel(q)};persist()}close();show('editor')}break
-    case 'roof':roof=!roof;show('preview');break
-    case 'submit':if(world.draft){
-      const problems=issues(world.draft)
-      if(problems.length){popup('Поправим проект',`<ul class="errors">${problems.map(p=>'<li>'+p+'</li>').join('')}</ul>${button('edit','Исправить на плане','back')}`);break}
-      finished=world.draft.purpose;world=complete(world,world.draft);persist();roof=true;show('finished')
-    }break
+    case 'edit':if(q&&world.accepted)window.location.assign(new URL(`./workshop.html?mode=career&quest=${q}`,document.baseURI).href);break
     case 'close':close();break
     case 'city':close();show('city');break
     case 'menu':close();show('menu');break
     case 'reset':popup('Сбросить прогресс?',`<p>Оба участка, чертёж и журнал заказов будут очищены.</p><div class="row">${button('confirm-reset','Сбросить','x')}${button('close','Отмена','back','minor')}</div>`);break
-    case 'confirm-reset':if(clear()){saved=null;world=freshWorld();close();show('menu')}else tell('Хранилище недоступно. Сбросить прогресс не удалось.');break
+    case 'confirm-reset':if(clear()){resetCareerDrafts();saved=null;world=freshWorld();close();show('menu')}else tell('Хранилище недоступно. Сбросить прогресс не удалось.');break
   }
 }
 document.addEventListener('click',event=>{
   const target=event.target
   if(target instanceof Element){const el=target.closest<HTMLButtonElement>('button[data-action]');if(el&&!el.disabled)act(el.dataset.action!)}
 })
-show(new URLSearchParams(location.search).get('city')==='1'&&saved?'city':'menu')
+const route=new URLSearchParams(location.search)
+const justFinished=route.get('finished')
+if((justFinished==='home'||justFinished==='bakery')&&saved?.buildings[justFinished]){
+  finished=justFinished
+  show('finished')
+}else show(route.get('city')==='1'&&saved?'city':'menu')

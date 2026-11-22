@@ -4,7 +4,7 @@ import { STOREY_HEIGHT, wallLength, footprint, subtractRect, stairRect, columns,
 import { Artist, roof, shade, type Palette } from './art'
 
 /** Geometry-only renderer: the workshop and town use the same immutable floor plans. */
-export function cityLandmark(plan:MultiStoreyPlan,p:Palette,theme:number):T.Group {
+export function cityLandmark(plan:MultiStoreyPlan,p:Palette,theme:number,options:{showRoof?:boolean}={}):T.Group {
   const a=new Artist()
   const putRect=(r:Rect,y:number,h:number,color:number)=>{
     a.put('box',(r.x0+r.x1)/2,y,(r.z0+r.z1)/2,r.x1-r.x0,h,r.z1-r.z0,color)
@@ -70,7 +70,7 @@ export function cityLandmark(plan:MultiStoreyPlan,p:Palette,theme:number):T.Grou
     const height=support.toY-support.fromY
     if(height>.001)a.put('box',support.x,support.fromY+height/2,support.z,.26,height,.26,p.stone)
   }
-  for(const r of roofs(plan)){
+  for(const r of options.showRoof===false?[]:roofs(plan)){
     if(r.kind==='setback')putRect(r,r.y+.025,.19,shade(p.roof,.14))
     else{
       const width=r.x1-r.x0,depth=r.z1-r.z0
