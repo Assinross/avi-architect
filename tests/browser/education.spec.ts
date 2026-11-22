@@ -17,7 +17,7 @@ test('Книга архитектора: пять локальных фотог�
  await expect.poll(()=>page.locator('#modal .ed-hero img').evaluate(
    (img:HTMLImageElement)=>img.complete&&img.naturalWidth>0)).toBe(true)
  await page.locator('#modal [data-action="answer-gaudi-1"]').click()
- await expect(page.locator('#modal .ed-feedback')).toContainText('Попробуй другой ответ')
+ await expect(page.locator('#modal .ed-feedback')).toContainText('попробуй другой ответ')
  await page.locator('#modal [data-action="answer-gaudi-0"]').click()
  await expect(page.locator('#modal .ed-feedback')).toContainText('Да! Это была реконструкция')
  const saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!),learningKey)
