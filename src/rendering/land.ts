@@ -1,17 +1,28 @@
 import * as T from 'three'
 import {Artist,custom,random,shade,vec,type Palette} from './art'
 import {townHall,bench,fountain} from './town'
+import {publicTrail,siteCenters,SITE_METRE} from '../site-access'
 
-export const lots={home:{x:-10.3,z:-4.2},bakery:{x:15.4,z:1.2}}
-export const landmarkLot={x:-22,z:-8}
-export const unit=.65
+export const lots={home:siteCenters.home,bakery:siteCenters.bakery}
+export const landmarkLot=siteCenters.landmark
+export const unit=SITE_METRE
 const river=(x:number)=>8.4+Math.sin(x*.117)*1.37+x*.112
 const channel=(x:number,z:number)=>Math.abs(z-river(x))
 const clamp=(v:number,min=0,max=1)=>Math.max(min,Math.min(max,v))
-function terrain(x:number,z:number){
+export function terrain(x:number,z:number){
   const bank=clamp((channel(x,z)-1.82)/1.08)
   const distant=clamp((Math.max(Math.abs(x)-19,-z-10,z-18))/12)
-  return (bank-1)*1.85+bank*distant*(1.5+Math.cos(x*.17)*.73+Math.sin(z*.27)*.8)+.018*Math.sin(x*.7)*Math.sin(z)
+  let height=(bank-1)*1.85+bank*distant*(1.5+Math.cos(x*.17)*.73+Math.sin(z*.27)*.8)+.018*Math.sin(x*.7)*Math.sin(z)
+  // The pre-existing terrain rises toward Nika's plot. Grade three small
+  // building sites down to the common slab datum, blending back into the
+  // natural hillside so a doorstep is not buried by grass.
+  for(const site of Object.values(siteCenters)){
+    const dx=Math.max(0,Math.abs(x-site.x)-(12*unit/2+.90))
+    const dz=Math.max(0,Math.abs(z-site.z)-(10*unit/2+.90))
+    const t=clamp(Math.hypot(dx,dz)/1.7),smooth=t*t*(3-2*t)
+    height*=smooth
+  }
+  return height
 }
 function path(a:Artist,points:number[][],w:number,color:number,detail:boolean) {
   const geo:number[]=[],inds:number[]=[],cols:number[]=[],rng=random(723)
@@ -116,7 +127,7 @@ export function landscape(p:Palette,theme:number) {
     a.put('box',x,-.46,z,.12+rng()*.83,.011,.027+rng()*.04,shade(p.river,.045+rng()*.15),0,(rng()-.7)*.18)
   }
   const road=0xc7b797
-  path(a,[[-31,-5],[-16,-1.2],[-8,.4],[-2,2.7],[3.3,2.1],[8,2.7],[15,5.3],[26,5.6],[38,8.3]],1.67,road,true)
+  path(a,publicTrail.map(p=>[p.x,p.z]),1.67,road,true)
   path(a,[[2.1,river(2.1)-3.27],[2.1,5.1],[1.6,3.6],[.3,2.4]],2.14,road,true)
   path(a,[[2.1,river(2.1)+3.27],[1.7,14.3],[-1.4,16.6],[-6.2,19.4],[-10,25],[-12,31]],2.16,road,true)
   path(a,[[5.7,2.8],[6.22,1.1],[6.22,-.1]],1.75,road,true)
