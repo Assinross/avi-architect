@@ -1,9 +1,11 @@
 import './style.css'
+import './education.css'
 import { emblem, icon } from './icons'
 import { Valley } from './rendering'
 import { freshWorld, currentQuest, area, rules, type Purpose } from './model'
 import { clear, load, save } from './storage'
 import { totalArea, estimate } from './multistorey'
+import { bookMarkup,featuredMarkup,storyMarkup,storyById,recordLearning,resetLearning,readLearning,checkAnswer,installPhotoFallback } from './education'
 
 type Screen = 'menu'|'city'|'plot'|'finished'
 const app = document.querySelector<HTMLElement>('#app')!
@@ -58,13 +60,13 @@ function show(next:Screen){
   if(next==='menu'){
     app.innerHTML=`<section class="menu"><header class="mast">${brand('Архитектурная мастерская')}${button('help','<span>Справка</span>','help','ghost')}</header>
     <div class="hero"><div class="kicker">Глава I · Новая долина</div><h1 lang="en">Architects<br><em>of Time</em></h1><p>Спроектируйте первый дом и вдохните жизнь в город у реки.</p>
-    <div class="menu-actions">${button('new','Новая игра<span class="tail">'+icon('next')+'</span>','build')}<button class="minor continue" data-action="continue" ${saved?'':'disabled'}>${icon('play')}Продолжить</button>${button('workshop','Свободная мастерская','build','minor')}${button('themes','Выбрать стиль','palette','minor')}${button('settings','Настройки','settings','minor')}</div></div>
+    <div class="menu-actions">${button('new','Новая игра<span class="tail">'+icon('next')+'</span>','build')}<button class="minor continue" data-action="continue" ${saved?'':'disabled'}>${icon('play')}Продолжить</button>${button('workshop','Свободная мастерская','build','minor')}${button('book','Книга архитектора','book','minor')}${button('themes','Выбрать стиль','palette','minor')}${button('settings','Настройки','settings','minor')}</div></div>
     <footer class="foot"><div class="place">${icon('pin')}<div><strong>Новая долина</strong><small>Речная низина · Глава I</small></div></div><div class="orientation" aria-hidden="true">С${icon('compass')}</div></footer></section>`
     return
   }
   const q=quest()
   const progress=Object.keys(world.buildings).length
-  const header=`<header class="hud">${brand('Глава I · Новая долина')}<nav class="tools">${button('journal','<span>Журнал</span>','book','')}${button('settings','<span>Настройки</span>','settings','')}<button data-action="help" aria-label="Справка">${icon('help')}</button></nav></header>`
+  const header=`<header class="hud">${brand('Глава I · Новая долина')}<nav class="tools">${button('book','<span>Книга</span>','book','')}${button('journal','<span>Журнал</span>','book','')}${button('settings','<span>Настройки</span>','settings','')}<button data-action="help" aria-label="Справка">${icon('help')}</button></nav></header>`
   let content=''
   if(next==='city'){
     content=q?`<div class="eyebrow">Заказ ${progress+1} из 2 · ${copy[q].client}</div><h2>${copy[q].name}</h2><p>${world.accepted?'Заказ принят. Участок ждёт вашего проекта.':q==='home'?'Эмма ждёт вас у площади.':'Пекарь Лев хочет открыть дело в долине.'}</p>${button(world.accepted?'plot':'order',world.accepted?'К строительству':'Поговорить','next')}`:
@@ -76,22 +78,52 @@ function show(next:Screen){
   }else if(next==='plot' && q){
     content=`<div class="eyebrow">Участок для строительства</div><h2>${copy[q].place}</h2><div class="stats"><span class="chip">12 × 10 м</span><span class="chip">Есть дорожка</span><span class="chip">Свободен</span></div>${button('edit','Открыть планировщик','build')}`
   }else if(next==='finished'){
-    content=`<div class="eyebrow">Заказ выполнен · +${rules[finished].reward} ★</div><h2>${copy[finished].name}</h2><p>"${copy[finished].thanks}"<br>- ${copy[finished].client}</p>${button('city','Вернуться в город','map')}`
+    content=`<div class="eyebrow">Заказ выполнен · +${rules[finished].reward} ★</div><h2>${copy[finished].name}</h2><p>"${copy[finished].thanks}"<br>- ${copy[finished].client}</p>${featuredMarkup(finished)}${button('city','Вернуться в город','map')}`
   }
-  app.innerHTML=header+`<section class="sheet">${content}</section><div class="status-pill">Построено · ${progress} / 2${world.landmark?' · Дом Ники':''}</div>`
+  app.innerHTML=header+`<section class="sheet${next==='finished'?' lesson-finished':''}">${content}</section><div class="status-pill">Построено · ${progress} / 2${world.landmark?' · Дом Ники':''}</div>`
+  installPhotoFallback(app)
 }
 function popup(title:string,body:string){
   if(!modal.open) focusBefore=document.activeElement instanceof HTMLElement?document.activeElement:null
+  modal.classList.remove('ed-expanded')
   modal.innerHTML=`<div class="modal-head"><h2>${title}</h2><button data-action="close" aria-label="Закрыть" class="round">${icon('x')}</button></div>${body}`
+  installPhotoFallback(modal)
   if(!modal.open)modal.showModal()
   valley.pause(true)
 }
 function close(){
+  modal.classList.remove('ed-expanded')
   if(modal.open)modal.close()
   valley.pause(false)
   focusBefore?.focus()
 }
 modal.addEventListener('cancel',event=>{event.preventDefault();close()})
+function learningStatus(){return {
+  home:Boolean(world.buildings.home),bakery:Boolean(world.buildings.bakery),landmark:Boolean(world.landmark)
+}}
+function openBook(){
+  popup('Книга архитектора',bookMarkup(learningStatus(),readLearning()))
+  modal.classList.add('ed-expanded')
+}
+function openStory(id:string){
+  const story=storyById(id)
+  if(!story)return
+  recordLearning(story.id,'read')
+  popup(story.title,storyMarkup(story,readLearning()))
+  modal.classList.add('ed-expanded')
+}
+function answerStory(id:string,index:number){
+  const story=storyById(id)
+  if(!story)return
+  if(!checkAnswer(story.id,index)){
+    const feedback=modal.querySelector<HTMLElement>('.ed-feedback')
+    if(feedback){feedback.textContent='Почти! Посмотри ещё раз на фото и попробуй другой ответ.'
+      feedback.classList.add('wrong')}
+    return
+  }
+  recordLearning(story.id,'solved')
+  openStory(story.id)
+}
 function order(q:Purpose){
   popup(copy[q].name,`<div class="eyebrow">${copy[q].client}</div><p>"${copy[q].line}"</p><div class="stats"><span class="chip">От ${rules[q].minArea} м²</span><span class="chip">Окон от ${rules[q].windows}</span><span class="chip">Бюджет ${rules[q].budget}</span></div><p>Замкните стены и предусмотрите входную дверь.</p>${button('accept','Принять заказ','check')}`)
 }
@@ -123,11 +155,15 @@ function resetCareerDrafts(){
     try{localStorage.removeItem(`avi-architect.career.${quest}.v1`)}catch{}
 }
 function start(){
+  resetLearning()
   resetCareerDrafts()
   world={...freshWorld(),theme:world.theme,quality:world.quality}
   persist();close();show('city')
 }
 function act(action:string){
+  if(action.startsWith('story-')){openStory(action.slice(6));return}
+  const answer=action.match(/^answer-([a-z]+)-([01])$/)
+  if(answer){answerStory(answer[1],Number(answer[2]));return}
   if(action.startsWith('theme-')){
     world={...world,theme:Number(action.slice(6)) as typeof world.theme}
     if(saved)persist()
@@ -141,6 +177,7 @@ function act(action:string){
     case 'workshop':window.location.assign(new URL('./workshop.html',document.baseURI).href);break
     case 'nika':if(world.buildings.bakery)window.location.assign(new URL('./workshop.html?mode=career&quest=landmark',document.baseURI).href);break
     case 'settings':settings();break
+    case 'book':openBook();break
     case 'themes':themes();break
     case 'journal':journal();break
     case 'help':popup('Мастерская архитектора','<p>В карьере инструменты открываются по заказам: сначала стены и проёмы, затем перегородки, потом лестницы и этажи. В свободной мастерской доступны все функции, а 3D обновляется сразу.</p>'+button('close','Вернуться','back'));break
@@ -152,7 +189,7 @@ function act(action:string){
     case 'city':close();show('city');break
     case 'menu':close();show('menu');break
     case 'reset':popup('Сбросить прогресс?',`<p>Оба участка, чертёж и журнал заказов будут очищены.</p><div class="row">${button('confirm-reset','Сбросить','x')}${button('close','Отмена','back','minor')}</div>`);break
-    case 'confirm-reset':if(clear()){resetCareerDrafts();saved=null;world=freshWorld();close();show('menu')}else tell('Хранилище недоступно. Сбросить прогресс не удалось.');break
+    case 'confirm-reset':if(clear()){resetCareerDrafts();resetLearning();saved=null;world=freshWorld();close();show('menu')}else tell('Хранилище недоступно. Сбросить прогресс не удалось.');break
   }
 }
 document.addEventListener('click',event=>{
@@ -165,3 +202,9 @@ if((justFinished==='home'||justFinished==='bakery')&&saved?.buildings[justFinish
   finished=justFinished
   show('finished')
 }else show(route.get('city')==='1'&&saved?'city':'menu')
+if(route.get('discovery')==='nika'&&saved?.landmark){
+  const cleanUrl=new URL(location.href)
+  cleanUrl.searchParams.delete('discovery')
+  history.replaceState(null,'',cleanUrl.href)
+  openStory('fallingwater')
+}
