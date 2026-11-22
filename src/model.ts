@@ -1,5 +1,7 @@
 export type Point = [number, number]
 export type Purpose = 'home' | 'bakery'
+import type { MultiStoreyPlan } from './multistorey'
+
 export type Theme = 0 | 1 | 2 | 3
 export interface Wall { id: string; a: Point; b: Point }
 export interface Opening { wallId: string; offset: number; kind: 'door' | 'window' }
@@ -12,6 +14,8 @@ export interface BuildingModel {
 
 export interface CityWorld {
   buildings: Partial<Record<Purpose, BuildingModel>>
+  /** The player's completed multi-storey home, on the third city plot. */
+  landmark: MultiStoreyPlan | null
   theme: Theme
   quality: 'auto' | 'low' | 'high'
   draft: BuildingModel | null
@@ -27,7 +31,7 @@ export const prices = { wall: 12, door: 45, window: 30, surface: 4 } as const
 export const plot = { width: 12, depth: 10 } as const
 
 export function freshWorld(): CityWorld {
-  return { buildings: {}, theme: 0, quality: 'auto', draft: null, accepted: false, rewards: 0 }
+  return { buildings: {}, landmark: null, theme: 0, quality: 'auto', draft: null, accepted: false, rewards: 0 }
 }
 
 export function newModel(purpose: Purpose): BuildingModel {
