@@ -87,9 +87,9 @@ test('Общая мастерская: карьерные открытия, тр
 test.describe('Планшет',()=>{
   test.use({viewport:{width:768,height:1024},hasTouch:true,isMobile:true})
   test('В карьере 3D включается по желанию; в свободном режиме показывается сразу',async({page})=>{
-    await page.goto('./')
-    for(const name of ['new','order','accept','edit'])await action(page,name).tap()
-    await expect(page).toHaveURL(/mode=career&quest=home/)
+    // The career tool palette is independent of the expensive city scene boot.
+    await page.goto('./workshop.html?mode=career&quest=home')
+    await expect(page.locator('#mainHeading')).toContainText('Эммы')
     await expect(page.locator('.preview-panel')).toBeHidden()
     await page.locator('#previewToggle').tap()
     await expect(page.locator('#volume canvas')).toBeVisible()

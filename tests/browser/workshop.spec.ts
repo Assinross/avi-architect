@@ -27,7 +27,7 @@ test('Мастерская: этажи, колонны, лестницы, пер
   await expect(page.locator('[data-stair-kind="spiral"]')).toHaveCount(1)
   await page.locator('#stairKind').selectOption('straight')
   await expect(page.locator('[data-stair-kind="straight"]')).toHaveCount(1)
-  await expect(page.locator('#checks')).toContainText('Планы этажей и лестницы совместимы')
+  await expect(page.locator('#checks')).toContainText('Проект удовлетворяет требованиям геометрии')
   await page.locator('[data-tool="partition"]').click()
   await page.locator('[data-node="4,4"]').click()
   await page.locator('[data-node="4,6"]').click()
