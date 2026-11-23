@@ -51,9 +51,11 @@ describe('Town hall roof clearance', () => {
         expect(mat.transparent).toBe(true)
         expect(mat.opacity).toBeLessThan(.25)
         expect(pane.geometry).toBeInstanceOf(T.PlaneGeometry)
+        expect((pane.geometry as T.PlaneGeometry).parameters.width).toBeCloseTo(.78)
+        expect((pane.geometry as T.PlaneGeometry).parameters.height).toBeCloseTo(.90)
         const distanceFromRidge = pane.position.z - (-3)
         const roofSurface = 4.53 + 2.83 * (1 - distanceFromRidge / 3.15) + .15
-        const windowBottom = pane.position.y - .77 / 2
+        const windowBottom = pane.position.y - .90 / 2
         expect(windowBottom - roofSurface).toBeGreaterThan(.15)
       }
 
