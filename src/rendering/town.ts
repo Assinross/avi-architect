@@ -140,17 +140,18 @@ export function townHall(a:Artist,p:Palette,theme:number) {
   }
   // Easter egg on the rear (-Z) wall: hand-painted "67", invisible
   // from the bridge-facing clock dial, but discoverable by orbiting the town.
+  // Viewed from -Z, screen-right is world -X: mirror local X once.
   const graffiti=(points:[number,number][],color:number)=>{
     for(let i=1;i<points.length;i++){
       const [ax,ay]=points[i-1],[bx,by]=points[i]
-      a.beam(vec(tx+ax,ay,tz-1.336),vec(tx+bx,by,tz-1.336),.132,0x34444b,.058)
-      a.beam(vec(tx+ax,ay,tz-1.363),vec(tx+bx,by,tz-1.363),.082,color,.047)
+      a.beam(vec(tx-ax,ay,tz-1.336),vec(tx-bx,by,tz-1.336),.132,0x34444b,.058)
+      a.beam(vec(tx-ax,ay,tz-1.363),vec(tx-bx,by,tz-1.363),.082,color,.047)
     }
   }
   graffiti([[-.15,5.66],[-.42,5.69],[-.66,5.48],[-.70,5.06],[-.51,4.86],[-.20,4.95],[-.20,5.19],[-.43,5.33],[-.68,5.21]],0xf18b67)
   graffiti([[.08,5.67],[.77,5.67],[.41,5.27],[.22,4.85]],0x6fbbb2)
   for(const [dx,dy,c] of [[-.91,5.50,0xf18b67],[-.85,5.23,0xf18b67],[.86,5.32,0x6fbbb2],[.67,4.84,0x6fbbb2],[.95,5.66,0xf7ce81]] as const)
-    a.put('canopy',tx+dx,dy,tz-1.36,.042,.033,.019,c)
+    a.put('canopy',tx-dx,dy,tz-1.36,.042,.033,.019,c)
   a.put('box',tx,8.75,tz,2.23,1.02,2.23,0x534d3e)
   for(const dx of [-1.14,1.14]) for(const dz of [-1.14,1.14])a.put('box',tx+dx,8.76,tz+dz,.26,1.26,.26,p.plaster)
   for(const [h,w,r] of [[9.75,2.24,1.25],[10.96,1.27,1.7],[12.06,.62,1.0]])a.put('cone',tx,h,tz,w,r,w,shade(p.roof,-.1),0,Math.PI/4)
