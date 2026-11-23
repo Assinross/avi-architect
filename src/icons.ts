@@ -1,4 +1,13 @@
 const shapes:Record<string,string>={
+ inspect:'<path d="M4 3v17l5-5 4 6 2-1-4-6 8-2z"/>',
+ outline:'<rect x="4" y="4" width="16" height="16" rx="1" stroke-dasharray="4 3"/><circle cx="4" cy="4" r="1.5" fill="currentColor"/>',
+ partition:'<path d="M3 5h18M12 5v14M3 19h18"/>',
+ walls:'<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 11h10v9M13 11h8"/>',
+ openings:'<path d="M4 4h16v16H4zM12 4v16M4 12h16"/>',
+ stairs:'<path d="M3 20h5v-5h5v-5h4V5h4M17 8l4-3-4-3"/>',
+ door:'<path d="M5 21V3h14v18M8 21V6h8v15M12 13h1"/>',
+ window:'<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M12 4v16M4 12h16"/>',
+ erase:'<path d="m3 16 9-11a2 2 0 0 1 3 0l6 6a2 2 0 0 1 0 3l-6 7H8zM9 10l8 8M15 21h6"/>',
  compass:'<circle cx="12" cy="12" r="9"/><path d="m16 7-2.6 6.5L7 17l3.5-7z"/>',
  build:'<path d="m3 11 9-8 9 8M5 10v11h14V10M9 21v-7h6v7"/>',
  book:'<path d="M12 6Q8 3 3 5v14q5-2 9 1 5-3 9-1V5q-5-2-9 1zm0 0v14"/>',

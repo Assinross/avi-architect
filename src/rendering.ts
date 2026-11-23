@@ -3,26 +3,25 @@ import * as T from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { plot, type BuildingModel, type CityWorld, type Purpose } from './model'
 import { Artist, disposeGroup, palettes, shapes, vec, type Palette } from './rendering/art'
+import { configureTouchNavigation } from './rendering/touch-navigation'
 import { landscape, lots, landmarkLot, unit } from './rendering/land'
 import { cityLandmark } from './rendering/city-landmark'
 import { STOREY_HEIGHT,type MultiStoreyPlan } from './multistorey'
 import { house, lot } from './rendering/building'
 import { planSiteAccess } from './site-access'
 import { renderSite } from './rendering/site'
+import { terrain } from './rendering/land'
+import { citizenWalk, type WalkerName } from './citizen-routes'
 
 type Target = Purpose | 'landmark' | 'mayor' | 'resident' | 'baker' | 'nika'
-type Citizen = {actor:T.Group; legs:T.Mesh[]; name:Target; stops:T.Vector3[]; index:number; resting:number; atDoor:boolean; doorStop:number|null}
+type Citizen = {
+  actor:T.Group; legs:T.Mesh[]; name:WalkerName
+  stops:T.Vector3[]; index:number; resting:number; atDoor:boolean
+  doorStop:number|null; turnStop:number; speed:number; phase:number
+}
 const origin=(purpose:Purpose)=>vec(lots[purpose].x-plot.width*unit/2,.045,lots[purpose].z-plot.depth*unit/2)
 const landmarkOrigin=()=>vec(landmarkLot.x-plot.width*unit/2,.045,landmarkLot.z-plot.depth*unit/2)
-function accessRoute(access:NonNullable<ReturnType<typeof planSiteAccess>>){
-  // NPC stops just outside the door, at the point on the new paving.
-  return access.route.slice(0,-1).map(p=>vec(p.x,.05,p.z))
-}
-function returnStops(route:T.Vector3[],home:T.Vector3){
-  // Go out along the SAME private path; never walk through the footprint.
-  return [...route,...route.slice(0,-1).reverse().map(p=>p.clone()),home]
-}
-function resident(name:Target,coat:number):Citizen {
+function resident(name:WalkerName,coat:number):Citizen {
   const a=new Artist(),apron=name==='baker',skin=name==='mayor'?0xc99871:0xe2b28c
   a.put('bush',0,1.32,0,.145,.18,.15,skin)
   a.put('box',0,1.01,0,.32,.43,.21,coat)
@@ -45,7 +44,8 @@ function resident(name:Target,coat:number):Citizen {
     const leg=new T.Mesh(shapes.box,mat);leg.position.set(s*.084,.40,0);leg.scale.set(.12,.60,.15)
     leg.castShadow=true;actor.add(leg);legs.push(leg)
   }
-  return {actor,legs,name,stops:[],index:0,resting:0,atDoor:false,doorStop:null}
+  return {actor,legs,name,stops:[],index:1,resting:0,atDoor:false,
+    doorStop:null,turnStop:0,speed:1,phase:0}
 }
 
 export class Valley{
@@ -84,8 +84,10 @@ export class Valley{
     this.renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'})
     this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap
     this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.08
+    this.renderer.domElement.setAttribute('aria-label','3D-город. Одним пальцем перемещай вид, двумя вращай, щипком меняй масштаб.')
     this.host.appendChild(this.renderer.domElement)
     this.controls=new OrbitControls(this.camera,this.renderer.domElement)
+    configureTouchNavigation(this.controls)
     this.controls.enableDamping=true;this.controls.dampingFactor=.095
     this.controls.maxPolarAngle=Math.PI*.475;this.controls.minPolarAngle=.22
     this.controls.minDistance=5;this.controls.maxDistance=57
@@ -184,31 +186,23 @@ export class Valley{
     }
     const mayor=resident('mayor',0x495d65),emma=resident('resident',0x8f685e),baker=resident('baker',0x8b7660)
     const nika=resident('nika',0x65836d)
-    for(const person of world.buildings.bakery?[mayor,emma,baker,nika]:[mayor,emma,baker]){
-      const first=person.name==='mayor'?vec(4.7,.05,.9):person.name==='resident'?vec(-1.7,.05,2.65):person.name==='nika'?vec(-17.6,.05,-2.0):vec(7.9,.05,2.45)
-      person.actor.position.copy(first)
+    for(const [order,person] of (world.buildings.bakery?[mayor,emma,baker,nika]:[mayor,emma,baker]).entries()){
       const model=person.name==='resident'?world.buildings.home:person.name==='baker'?world.buildings.bakery:undefined
-      if(model){
-        const access=planSiteAccess(model.purpose,world.careerPlans[model.purpose]?.floors[0]??model)
-        if(access){
-          const route=accessRoute(access)
-          person.doorStop=route.length-1
-          person.stops=returnStops(route,first)
-        }
-      }else if(person.name==='nika'&&world.landmark){
-        const access=planSiteAccess('landmark',world.landmark.floors[0])
-        if(access){
-          const route=accessRoute(access)
-          person.doorStop=route.length-1
-          person.stops=returnStops(route,first)
-        }
-      }
-      if(!person.stops.length)
-        person.stops=[first,first.clone().add(vec(1.4,0,.38)),first.clone().add(vec(-.65,0,.55))]
-      if(person===mayor&&world.buildings.bakery){
-        const access=planSiteAccess('bakery',world.careerPlans.bakery?.floors[0]??world.buildings.bakery)
-        if(access)person.stops.push(vec(12,.05,4),...accessRoute(access),vec(13,.05,4.8))
-      }
+      const access=model
+        ? planSiteAccess(model.purpose,world.careerPlans[model.purpose]?.floors[0]??model)
+        : person.name==='nika'&&world.landmark
+        ? planSiteAccess('landmark',world.landmark.floors[0])
+        : null
+      const itinerary=citizenWalk(person.name,access)
+      // Positions follow the same public/private path geometry rendered on the terrain.
+      person.stops=itinerary.points.map(p=>vec(p.x,terrain(p.x,p.z)+.06,p.z))
+      person.actor.position.copy(person.stops[0])
+      person.doorStop=itinerary.doorStop
+      person.turnStop=itinerary.turnStop
+      person.index=1
+      person.speed=[.75,.62,.89,.69][order]
+      person.phase=order*1.85
+      person.resting=order*.35
       this.citizens.push(person);this.objects.add(person.actor)
       this.addHit(person.name,vec(0,.80,0),vec(.85,1.65,.85),person.actor)
     }
@@ -254,21 +248,44 @@ export class Valley{
       this.sun.intensity=2.26-dusk*.95;this.ambient.intensity=1.65-dusk*.48
       this.glass.forEach(m=>{(m.material as T.MeshStandardMaterial).emissiveIntensity=.09+dusk*1.45})
       for(const citizen of this.citizens){
-        if(citizen.resting>0){citizen.resting-=dt;continue}
-        citizen.actor.visible=true
-        const dest=citizen.stops[citizen.index],delta=dest.clone().sub(citizen.actor.position),distance=delta.length()
-        if(distance<.08){
-          const working=citizen.name==='baker'&&citizen.doorStop!==null&&citizen.index===citizen.doorStop
-          citizen.atDoor=(citizen.name==='resident'||citizen.name==='nika')&&
-            citizen.doorStop!==null&&citizen.index===citizen.doorStop
-          citizen.actor.visible=!citizen.atDoor;citizen.resting=working?11:citizen.atDoor?6:2
-          citizen.index=(citizen.index+1)%citizen.stops.length
+        const dest=citizen.stops[citizen.index]
+        const dx=dest.x-citizen.actor.position.x,dz=dest.z-citizen.actor.position.z
+        const distance=Math.hypot(dx,dz)
+        if(citizen.resting>0){
+          citizen.resting=Math.max(0,citizen.resting-dt)
+          // Use a short pause to face the next direction instead of snapping 180°.
+          if(!citizen.atDoor&&distance>.06){
+            const angle=Math.atan2(dx,dz)
+            const turn=Math.atan2(Math.sin(angle-citizen.actor.rotation.y),Math.cos(angle-citizen.actor.rotation.y))
+            citizen.actor.rotation.y+=turn*Math.min(1,dt*5)
+          }
           citizen.legs.forEach(l=>l.rotation.x=0)
-        }else{
-          citizen.actor.position.addScaledVector(delta,Math.min(distance,dt*.83)/distance)
-          citizen.actor.rotation.y=Math.atan2(delta.x,delta.z)
-          citizen.legs.forEach((l,i)=>l.rotation.x=Math.sin(this.elapsed*7+i*Math.PI)*.31)
+          continue
         }
+        citizen.actor.visible=true
+        citizen.atDoor=false
+        if(distance<.07){
+          const arrived=citizen.index
+          citizen.index=(arrived+1)%citizen.stops.length
+          if(arrived===citizen.doorStop){
+            citizen.atDoor=true
+            citizen.actor.visible=false
+            citizen.resting=citizen.name==='baker'?6:4.5
+          }else if(arrived===citizen.turnStop||arrived===citizen.stops.length-1){
+            citizen.resting=1.0+citizen.phase*.25
+          }
+          citizen.legs.forEach(l=>l.rotation.x=0)
+          continue
+        }
+        const angle=Math.atan2(dx,dz)
+        const turn=Math.atan2(Math.sin(angle-citizen.actor.rotation.y),Math.cos(angle-citizen.actor.rotation.y))
+        citizen.actor.rotation.y+=turn*Math.min(1,dt*7)
+        const speed=citizen.speed*(.94+.06*Math.sin(this.elapsed*.7+citizen.phase))
+        const step=Math.min(distance,dt*speed*(1-.30*Math.abs(turn)/Math.PI))
+        citizen.actor.position.x+=dx/distance*step
+        citizen.actor.position.z+=dz/distance*step
+        citizen.actor.position.y=terrain(citizen.actor.position.x,citizen.actor.position.z)+.06
+        citizen.legs.forEach((leg,i)=>{leg.rotation.x=Math.sin(this.elapsed*9*speed+citizen.phase+i*Math.PI)*.32})
       }
       this.smoke.forEach((puff,i)=>{
         const t=(this.elapsed*.28+i/this.smoke.length)%1
