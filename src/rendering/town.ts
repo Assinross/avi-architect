@@ -19,16 +19,24 @@ export function townHall(a:Artist,p:Palette,theme:number) {
   for(let j=0;j<4;j++) a.put('box',x+1.2,.09+j*.105,front+.96-j*.21,1.95,.18,.49,p.stone)
   a.put('box',x+1.2,1.35,front+.10,1.23,2.04,.15,p.wood)
   a.put('box',x+1.2,1.31,front+.19,.92,1.75,.08,0x526c61)
-  roof(a,x,4.53,z,10.65,6.30,2.83,p,42,theme===0||theme===1)
+  // The clock tower overlaps the eastern end of the main building.
+  // Stop the pitched roof at its western wall; otherwise roof tiles cut through
+  // the tower facade and hide the lower half of the clock face.
+  const tx=x+4.66,tz=z-.65,sw=2.6
+  const roofWest=x-10.65/2,roofEast=tx-sw/2+.06
+  roof(a,(roofWest+roofEast)/2,4.53,z,roofEast-roofWest,6.30,2.83,p,42,theme===0||theme===1)
+  // Move the dormer fronts towards the eaves. Their lower window edges must
+  // stay above the sloping roof surface instead of disappearing behind tiles.
+  const dormerFront=z+2.82
   for(const xx of [x-2.4,x+2.3]){
-    a.put('box',xx,5.57,z+1.65,1.26,1.4,.96,p.plaster)
-    windowFrame(a,xx,5.61,z+2.14,.55,.77,p,false)
-    a.put('box',xx,6.43,z+1.64,1.62,.15,1.62,shade(p.roof,-.08),.27)
+    const dormerCenter=dormerFront-.49
+    a.put('box',xx,5.57,dormerCenter,1.26,1.4,.96,p.plaster)
+    windowFrame(a,xx,5.61,dormerFront,.55,.77,p,false)
+    a.put('box',xx,6.43,dormerCenter-.01,1.62,.15,1.62,shade(p.roof,-.08),.27)
   }
   a.put('box',x-3,6.68,z-1.12,.70,2.65,.77,p.stone)
   a.put('box',x-3,8.04,z-1.12,.89,.24,.94,p.roof)
   // Боковая башня возвышается над коньком, циферблат виден от моста.
-  const tx=x+4.66,tz=z-.65,sw=2.6
   a.put('box',tx,4.12,tz,sw,8.3,sw,p.plaster)
   for(const side of [-1,1]) for(let j=0;j<17;j++){
     const q=shade(p.stone,(rng()-.5)*.12)
