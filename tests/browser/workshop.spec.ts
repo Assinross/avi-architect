@@ -208,7 +208,7 @@ test('Мобильная шапка: название над компактны�
   await expect(menu).toHaveAttribute('aria-expanded','false')
   await expect(extra).toBeHidden()
   await menu.click()
-  await page.locator('.plan-panel h2').click()
+  await page.locator('.top .logo').click()
   await expect(extra).toBeHidden()
 
   await page.locator('#add').click()
