@@ -23,31 +23,47 @@ describe('Town hall roof clearance', () => {
       const boxes = transforms(artist, 'box')
       const cylinders = transforms(artist, 'cylinder')
 
-      // Main hall: two pitched slabs, distinct from small dormer roofs.
+      // Both pitched slabs run all the way to the building's east wall
+      // (x = 9.9). The tower now joins that wall instead of cutting a roofless
+      // opening into the last 1.5 metres of the attic.
       const slabs = boxes.filter(({scale}) =>
-        scale.x > 8 && scale.x < 9.2 && near(scale.y, .15) && scale.z > 4)
+        scale.x > 10 && scale.x < 10.6 && near(scale.y, .15) && scale.z > 4)
       expect(slabs).toHaveLength(2)
       const roofRight = Math.max(...slabs.map(({position, scale}) => position.x + scale.x / 2))
+      expect(roofRight).toBeGreaterThan(9.9)
 
-      // Two 1.54-m clock rings are mounted on the front and side of the tower.
+      // Two 1.54-m clock rings still sit entirely outside the roof.
       const clocks = cylinders.filter(({scale}) =>
         near(scale.x, 1.54) && near(scale.y, .14) && near(scale.z, 1.54))
       expect(clocks).toHaveLength(2)
       const clockLeft = Math.min(...clocks.map(({position}) => position.x - 1.54 / 2))
       expect(roofRight).toBeLessThan(clockLeft - .3)
 
-      // Dormer window frames have unique 0.71 × 0.97 × 0.14 dimensions.
-      const dormers = boxes.filter(({position, scale}) =>
-        near(position.y, 5.61) && near(scale.x, .71) &&
-        near(scale.y, .97) && near(scale.z, .14))
-      expect(dormers).toHaveLength(2)
-      for (const {position} of dormers) {
-        // Ridge at z=-3, front eave at z=0.15. Include tile relief.
-        const distanceFromRidge = position.z - (-3)
+      // Windows have actual transparent glass, not opaque frames covering a
+      // solid plaster cube. Their lower edges clear the pitched roof.
+      const panes = artist.group.children.filter((obj):obj is T.Mesh =>
+        obj instanceof T.Mesh && obj.name.startsWith('town-hall-attic-window-'))
+      expect(panes.map(p => p.name).sort()).toEqual([
+        'town-hall-attic-window-0', 'town-hall-attic-window-1',
+      ])
+      for (const pane of panes) {
+        const mat = pane.material as T.MeshStandardMaterial
+        expect(mat.transparent).toBe(true)
+        expect(mat.opacity).toBeLessThan(.25)
+        expect(pane.geometry).toBeInstanceOf(T.PlaneGeometry)
+        expect((pane.geometry as T.PlaneGeometry).parameters.width).toBeCloseTo(.78)
+        expect((pane.geometry as T.PlaneGeometry).parameters.height).toBeCloseTo(.90)
+        const distanceFromRidge = pane.position.z - (-3)
         const roofSurface = 4.53 + 2.83 * (1 - distanceFromRidge / 3.15) + .15
-        const windowBottom = position.y - .77 / 2
+        const windowBottom = pane.position.y - .90 / 2
         expect(windowBottom - roofSurface).toBeGreaterThan(.15)
       }
+
+      // Recognizable attic miniatures: an old bear, clown's red balloon,
+      // rag doll with orange hair and the pale horror mask.
+      const colors = artist.batches.get('box')!.colors.map(color => color.getHex())
+      for (const color of [0xb94037, 0xc16c35, 0x404849, 0x352f31])
+        expect(colors).toContain(color)
     })
   }
 })

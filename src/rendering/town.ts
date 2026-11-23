@@ -1,5 +1,5 @@
 import * as T from 'three'
-import {Artist, random, shade, vec, roof, windowFrame, type Palette} from './art'
+import {Artist, random, shade, vec, roof, type Palette} from './art'
 export function townHall(a:Artist,p:Palette,theme:number) {
   const rng=random(741),x=5,z=-3
   a.put('box',x,.19,z,10.2,.44,5.6,p.stone)
@@ -100,19 +100,98 @@ export function townHall(a:Artist,p:Palette,theme:number) {
   for(let j=0;j<4;j++) a.put('box',x+1.2,.09+j*.105,front+.96-j*.21,1.95,.18,.49,p.stone)
   a.put('box',x+1.2,1.35,front+.10,1.23,2.04,.15,p.wood)
   a.put('box',x+1.2,1.31,front+.19,.92,1.75,.08,0x526c61)
-  // The clock tower overlaps the eastern end of the main building.
-  // Stop the pitched roof at its western wall; otherwise roof tiles cut through
-  // the tower facade and hide the lower half of the clock face.
-  const tx=x+4.66,tz=z-.65,sw=2.6
+  // The clock tower belongs BESIDE the east wall, not through the attic.
+  // Earlier cropping at x=8.42 left a roofless opening over the last bay.
+  // Align its west side with the hall's east wall so the pitched roof spans
+  // the entire hall and meets the tower without covering its clock face.
+  const tx=x+6.2,tz=z-.65,sw=2.6
   const roofWest=x-10.65/2,roofEast=tx-sw/2+.06
   roof(a,(roofWest+roofEast)/2,4.53,z,roofEast-roofWest,6.30,2.83,p,42,theme===0||theme===1)
-  // Move the dormer fronts towards the eaves. Their lower window edges must
-  // stay above the sloping roof surface instead of disappearing behind tiles.
+
+  // Dormers are miniature rooms, not plaster cubes with painted-over glass.
+  // Build an open front, transparent windows and an illuminated-by-daylight
+  // back shelf. The toys sit above the roof plane and can be seen from town.
   const dormerFront=z+2.82
-  for(const xx of [x-2.4,x+2.3]){
+  const atticGlass=new T.MeshStandardMaterial({
+    color:0xc8e2d6,transparent:true,opacity:.14,depthWrite:false,
+    roughness:.14,metalness:.04,side:T.DoubleSide,
+  })
+  for(const [index,xx] of [x-2.4,x+2.3].entries()){
     const dormerCenter=dormerFront-.49
-    a.put('box',xx,5.57,dormerCenter,1.26,1.4,.96,p.plaster)
-    windowFrame(a,xx,5.61,dormerFront,.55,.77,p,false)
+    const facadeZ=dormerFront-.045
+    // Side and back walls; the front is a real hole for the window.
+    for(const side of [-1,1]){
+      a.put('box',xx+side*.56,5.57,dormerCenter,.14,1.40,.98,p.plaster)
+      a.put('box',xx+side*.525,5.57,facadeZ,.21,1.40,.14,p.plaster)
+    }
+    // A slightly wider window lets the interior toys remain legible from town.
+    a.put('box',xx,5.00,facadeZ,.84,.26,.14,p.plaster)
+    a.put('box',xx,6.18,facadeZ,.84,.18,.14,p.plaster)
+    a.put('box',xx,5.60,dormerFront-.98,1.20,1.40,.12,shade(p.wood,-.15))
+    a.put('box',xx,5.23,dormerCenter,1.05,.09,.85,shade(p.wood,.07))
+    // Dark recess makes the stored figures stand out through the glazing.
+    a.put('box',xx,5.69,dormerFront-.79,1.00,.99,.06,0x352f31)
+    for(const side of [-1,1]){
+      a.put('box',xx+side*.30,5.39,dormerFront-.63,.21,.27,.23,0x806044)
+      a.put('box',xx+side*.30,5.54,dormerFront-.63,.21,.035,.23,0xac8964)
+    }
+    const figureZ=dormerFront-.31
+    if(index===0){
+      // Forgotten teddy bear: stitched nose, dark button eyes and worn ears.
+      const bx=xx-.16
+      a.put('bush',bx,5.49,figureZ,.13,.18,.13,0x936644)
+      a.put('bush',bx,5.71,figureZ,.14,.15,.12,0xb78c60)
+      for(const side of [-1,1]){
+        a.put('bush',bx+side*.10,5.83,figureZ,.058,.06,.06,0x936644)
+        a.put('bush',bx+side*.052,5.74,figureZ+.116,.022,.023,.014,0x24262a)
+      }
+      a.put('bush',bx,5.67,figureZ+.132,.038,.031,.025,0x4b352d)
+      // Pennywise-like antique clown toy and its tiny red balloon.
+      const cx=xx+.14
+      a.put('box',cx,5.46,figureZ,.17,.30,.14,0xd7d2b9)
+      a.put('bush',cx,5.71,figureZ,.12,.13,.11,0xf5dfc5)
+      for(const side of [-1,1]){
+        a.put('bush',cx+side*.105,5.72,figureZ,.061,.09,.07,0xa84a37)
+        a.put('bush',cx+side*.042,5.73,figureZ+.105,.016,.021,.012,0x25252a)
+      }
+      a.put('bush',cx,5.69,figureZ+.117,.027,.028,.017,0xb52f35)
+      a.put('box',cx,5.55,figureZ+.082,.19,.05,.06,0xb94037)
+      const balloonX=xx+.25,balloonZ=dormerFront-.58
+      a.put('bush',balloonX,5.91,balloonZ,.086,.12,.075,0xb82c34)
+      a.beam(vec(balloonX,5.83,balloonZ),vec(balloonX-.04,5.51,balloonZ),.011,0xcab6a0)
+    }else{
+      // Rag doll with orange hair and a striped sweater: cursed-doll nod.
+      const cx=xx-.15
+      a.put('box',cx,5.45,figureZ,.21,.28,.12,0x48658a)
+      for(const yy of [5.40,5.48,5.56])
+        a.put('box',cx,yy,figureZ+.07,.22,.038,.018,0xa73b42)
+      a.put('bush',cx,5.71,figureZ,.13,.14,.11,0xecc5a0)
+      a.put('box',cx,5.84,figureZ,.24,.075,.13,0xc16c35)
+      for(const side of [-1,1])
+        a.put('bush',cx+side*.05,5.73,figureZ+.103,.019,.023,.014,0x303037)
+      // White hockey mask with black eye sockets, displayed on a dark coat.
+      const mx=xx+.17
+      a.put('box',mx,5.46,figureZ,.21,.32,.14,0x404849)
+      a.put('bush',mx,5.71,figureZ,.13,.16,.09,0xe7dec9)
+      for(const side of [-1,1])
+        a.put('bush',mx+side*.048,5.74,figureZ+.096,.031,.039,.014,0x1b2327)
+      a.put('box',mx,5.65,figureZ+.10,.045,.055,.019,0x6e5550)
+      // A tiny brown fedora and striped sweater stored behind the mask.
+      a.put('box',xx+.28,5.86,dormerFront-.59,.26,.035,.20,0x66432f)
+      a.put('box',xx+.28,5.91,dormerFront-.59,.17,.09,.16,0x6a482e)
+    }
+    // Actual light-transmitting pane, backed by the visible toy storeroom.
+    const glass=new T.Mesh(new T.PlaneGeometry(.78,.90),atticGlass)
+    glass.position.set(xx,5.61,dormerFront+.075)
+    glass.name='town-hall-attic-window-'+index
+    a.group.add(glass)
+    for(const side of [-1,1]){
+      a.put('box',xx+side*.435,5.61,dormerFront+.11,.075,1.03,.09,p.wood)
+      a.put('box',xx,5.61+side*.48,dormerFront+.11,.94,.075,.09,p.wood)
+    }
+    a.put('box',xx,5.61,dormerFront+.15,.043,.90,.035,0xf1e3c7)
+    a.put('box',xx,5.66,dormerFront+.15,.78,.039,.035,0xf1e3c7)
+    a.put('box',xx,5.13,dormerFront+.08,.98,.12,.26,p.stone)
     a.put('box',xx,6.43,dormerCenter-.01,1.62,.15,1.62,shade(p.roof,-.08),.27)
   }
   a.put('box',x-3,6.68,z-1.12,.70,2.65,.77,p.stone)
