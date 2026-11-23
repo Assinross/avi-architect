@@ -75,7 +75,7 @@ test('Общая мастерская: карьерные открытия, тр
   await expect(page.locator('#careerChecks .fine')).toBeVisible()
   await page.locator('#publish').click()
   await page.waitForURL(/\?city=1/)
-  await expect(page.locator('.sheet')).toContainText('дом Ники готов')
+  await expect(page.locator('.sheet')).toContainText('Дом Ники готов')
   await expect(page.locator('[data-story="fallingwater"]')).toContainText('Фрэнк Ллойд Райт')
   const city=await world(page)
   expect(city.rewards).toBe(3)
@@ -83,7 +83,8 @@ test('Общая мастерская: карьерные открытия, тр
   expect(city.careerPlans.home?.floors).toHaveLength(1)
   expect(city.careerPlans.bakery?.floors[0].partitions).toHaveLength(1)
   await page.reload()
-  await expect(page.locator('.sheet')).toContainText('Ника поселилась')
+  await expect(page.getByRole('button',{name:'Спроектировать акведук'})).toBeVisible()
+  await expect(page.locator('.status-pill')).toContainText('3 / 5')
   expect(errors).toEqual([])
 })
 
