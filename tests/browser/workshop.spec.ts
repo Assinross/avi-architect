@@ -154,7 +154,7 @@ test('Мобильная лестница: лепестки изменяют с�
   await tools.locator('[data-stair-toggle]').click()
   await tools.locator('[data-stair-kind="spiral"]').click()
   await tools.locator('[data-stair-facing="west"]').click()
-  await expect(page.locator('[data-stair-kind="spiral"]')).toHaveCount(1)
+  await expect(page.locator('#plan [data-stair-kind="spiral"]')).toHaveCount(1)
   expect(await page.evaluate(() => {
     const plan=JSON.parse(localStorage.getItem('avi-architect.multistorey-workshop.v1')||'null')
     return [plan?.floors[0]?.stairToNext?.kind,plan?.floors[0]?.stairToNext?.facing]
