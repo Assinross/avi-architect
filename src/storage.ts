@@ -1,3 +1,4 @@
+import { validRiverworks } from './civic'
 import { isBuildingModel, isRecord, issues, rules, type CityWorld } from './model'
 import { isCityLandmark } from './city-landmark'
 
@@ -9,6 +10,8 @@ function validWorld(value: unknown): value is CityWorld {
       ![0, 1, 2, 3].some(theme => value.theme === theme) ||
       !['auto', 'low', 'high'].some(quality => value.quality === quality) ||
       typeof value.accepted !== 'boolean') return false
+
+  if (value.riverworks !== undefined && (!value.landmark || !validRiverworks(value.riverworks))) return false
 
   let rewards = 0
   for (const [lot, model] of Object.entries(value.buildings)) {

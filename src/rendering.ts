@@ -1,3 +1,4 @@
+import { riverDistrict } from './rendering/riverworks'
 import * as T from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { plot, type BuildingModel, type CityWorld, type Purpose } from './model'
@@ -138,7 +139,7 @@ export class Valley{
   }
   city(world:CityWorld,focus?:Purpose|'landmark'){
     const previous=this.mode,themeChanged=this.theme!==world.theme
-    const focusKey=focus??'', key=JSON.stringify([world.theme,world.buildings,world.careerPlans,world.landmark,focusKey])
+    const focusKey=focus??'', key=JSON.stringify([world.theme,world.buildings,world.careerPlans,world.landmark,world.riverworks,focusKey])
     if(this.quality!==world.quality){
       this.quality=world.quality;this.resize()
       this.sun.castShadow=this.quality!=='low'
@@ -151,6 +152,7 @@ export class Valley{
       this.terrain=landscape(p,world.theme);this.scene.add(this.terrain);this.theme=world.theme
     }
     this.terrain.visible=true;this.clearObjects()
+    if(world.riverworks)this.objects.add(riverDistrict(world.riverworks,p))
     for(const purpose of ['home','bakery'] as const){
       const model=world.buildings[purpose],base=origin(purpose)
       const plan=world.careerPlans[purpose]

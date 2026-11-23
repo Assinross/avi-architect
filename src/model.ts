@@ -13,6 +13,7 @@ export interface BuildingModel {
 }
 
 export interface CityWorld {
+  riverworks?: import('./civic').Riverworks
   buildings: Partial<Record<Purpose, BuildingModel>>
   /** The player's completed multi-storey home, on the third city plot. */
   landmark: MultiStoreyPlan | null

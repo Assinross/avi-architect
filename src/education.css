@@ -64,3 +64,16 @@ dialog.ed-dialog::backdrop{background:#16302191;backdrop-filter:blur(4px)}
  .ed-feature-top{flex-wrap:wrap}
  .sheet.lesson-finished{max-height:70dvh}
 }
+.river-profile {display:block;width:100%;margin:12px 0 5px;background:#edf1e5;border-radius:9px}
+.river-history {margin:14px 0}
+.river-history summary {cursor:pointer}
+.garden-grid,.garden-canal {max-width:330px;margin:auto}
+.garden-grid {display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+.garden-grid>* {min-height:44px;display:grid;place-content:center;text-align:center;background:#dbe5c5;color:#233e30;border:0;border-radius:4px}
+.garden-grid span,.garden-grid .plant-path {background:#e2cba6}
+.garden-grid .plant-flowers {background:#f2d5c8}
+.garden-grid .plant-tree {background:#a9c99b}
+.garden-canal {background:#437c7e;color:white;text-align:center;padding:4px;margin-bottom:3px;border-radius:4px}
+.garden-tools {display:flex;flex-wrap:wrap;gap:4px;margin:10px 0}
+.garden-tools button {padding:8px;background:var(--paper);border:1px solid var(--line);border-radius:6px}
+.garden-tools [aria-pressed=true] {background:#345942;color:white}

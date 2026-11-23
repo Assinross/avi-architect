@@ -1,3 +1,4 @@
+import { aqueductForm, gardenForm, gardenIssue, historyNote, plantNames, waterStops, type Plant } from './civic'
 import './style.css'
 import './education.css'
 import { emblem, icon } from './icons'
@@ -59,28 +60,28 @@ function show(next:Screen){
   valley.city(world,next==='plot'?quest()??undefined:next==='finished'?finished:undefined)
   if(next==='menu'){
     app.innerHTML=`<section class="menu"><header class="mast">${brand('Архитектурная мастерская')}${button('help','<span>Справка</span>','help','ghost')}</header>
-    <div class="hero"><div class="kicker">Глава I · Новая долина</div><h1 lang="en">Architects<br><em>of Time</em></h1><p>Спроектируйте первый дом и вдохните жизнь в город у реки.</p>
+    <div class="hero"><div class="kicker">Глава I · Новая долина</div><h1 lang="en">Architects<br><em>of Time</em></h1><p>Начните с дома у площади. Со временем вы проведёте воду через реку и вырастите сад для жителей долины.</p>
     <div class="menu-actions">${button('new','Новая игра<span class="tail">'+icon('next')+'</span>','build')}<button class="minor continue" data-action="continue" ${saved?'':'disabled'}>${icon('play')}Продолжить</button>${button('workshop','Свободная мастерская','build','minor')}${button('book','Книга архитектора','book','minor')}${button('themes','Выбрать стиль','palette','minor')}${button('settings','Настройки','settings','minor')}</div></div>
     <footer class="foot"><div class="place">${icon('pin')}<div><strong>Новая долина</strong><small>Речная низина · Глава I</small></div></div><div class="orientation" aria-hidden="true">С${icon('compass')}</div></footer></section>`
     return
   }
   const q=quest()
   const progress=Object.keys(world.buildings).length
-  const header=`<header class="hud">${brand('Глава I · Новая долина')}<nav class="tools">${button('book','<span>Книга</span>','book','')}${button('journal','<span>Журнал</span>','book','')}${button('settings','<span>Настройки</span>','settings','')}<button data-action="help" aria-label="Справка">${icon('help')}</button></nav></header>`
+  const header=`<header class="hud">${brand(world.landmark?'Глава II · Вода для долины':'Глава I · Новая долина')}<nav class="tools">${button('book','<span>Книга</span>','book','')}${button('journal','<span>Журнал</span>','book','')}${button('settings','<span>Настройки</span>','settings','')}<button data-action="help" aria-label="Справка">${icon('help')}</button></nav></header>`
   let content=''
   if(next==='city'){
-    content=q?`<div class="eyebrow">Заказ ${progress+1} из 2 · ${copy[q].client}</div><h2>${copy[q].name}</h2><p>${world.accepted?'Заказ принят. Участок ждёт вашего проекта.':q==='home'?'Эмма ждёт вас у площади.':'Пекарь Лев хочет открыть дело в долине.'}</p>${button(world.accepted?'plot':'order',world.accepted?'К строительству':'Поговорить','next')}`:
-    `<div class="eyebrow">Глава I завершена · Свободное творчество</div><h2>Долина ожила${world.landmark?' — дом Ники готов':''}</h2><p>${world.landmark?
-      `Ника поселилась в доме архитектора: ${world.landmark.floors.length} эт., ${totalArea(world.landmark)} м². Можно улучшить план в мастерской.`:
+    content=q?`<div class="eyebrow">Заказ ${progress+1} из 5 · ${copy[q].client}</div><h2>${copy[q].name}</h2><p>${world.accepted?'Заказ принят. Участок ждёт вашего проекта.':q==='home'?'Эмма ждёт вас у площади.':'Пекарь Лев хочет открыть дело в долине.'}</p>${button(world.accepted?'plot':'order',world.accepted?'К строительству':'Поговорить','next')}`:
+    `<div class="eyebrow">${world.landmark?'Глава II · Вода для долины':'Долина ожила · Заказ Ники'}</div><h2>${world.landmark?(world.riverworks?.garden?'Сад у воды открыт':world.riverworks?'Сад у водосборника':'Вода для долины'):'Дом мечты Ники'}</h2><p>${world.landmark?
+      (world.riverworks?.garden?'У воды цветут клумбы. Эмма зовёт отдохнуть в тени.':world.riverworks?'Вода пришла на берег. Эмма хочет устроить здесь общественный сад.':'Дом Ники готов. Лев просит провести воду от родника на другой берег.'):
       'Эмма и Лев обжились. На третьем участке Ника ждёт дом твоего проекта — с перегородками, лестницами и настоящими этажами.'}</p>
-      ${button('nika',world.landmark?'Улучшить дом Ники':'Принять заказ Ники','build')}
-      <div class="row" style="margin-top:8px">${button('journal','Журнал заказов','book','minor')}</div>`
+      ${world.landmark?button(world.riverworks?'garden':'aqueduct',world.riverworks?.garden?'Изменить сад':world.riverworks?'Разбить сад':'Спроектировать акведук','build'):button('nika','Принять заказ Ники','build')}
+      <div class="row" style="margin-top:8px">${world.landmark?button('nika','Улучшить дом Ники','build','minor'):''}${button('journal','Журнал заказов','book','minor')}</div>`
   }else if(next==='plot' && q){
     content=`<div class="eyebrow">Участок для строительства</div><h2>${copy[q].place}</h2><div class="stats"><span class="chip">12 × 10 м</span><span class="chip">Есть дорожка</span><span class="chip">Свободен</span></div>${button('edit','Открыть планировщик','build')}`
   }else if(next==='finished'){
     content=`<div class="eyebrow">Заказ выполнен · +${rules[finished].reward} ★</div><h2>${copy[finished].name}</h2><p>"${copy[finished].thanks}"<br>- ${copy[finished].client}</p>${featuredMarkup(finished)}${button('city','Вернуться в город','map')}`
   }
-  app.innerHTML=header+`<section class="sheet${next==='finished'?' lesson-finished':''}">${content}</section><div class="status-pill">Построено · ${progress} / 2${world.landmark?' · Дом Ники':''}</div>`
+  app.innerHTML=header+`<section class="sheet${next==='finished'?' lesson-finished':''}">${content}</section><div class="status-pill">Построено · ${progress+Number(!!world.landmark)+Number(!!world.riverworks)+Number(!!world.riverworks?.garden)} / 5</div>`
   installPhotoFallback(app)
 }
 function popup(title:string,body:string){
@@ -130,7 +131,9 @@ function order(q:Purpose){
 function journal(){
   const records=(['home','bakery'] as const).map(q=>`<div class="journal-item"><strong>${copy[q].name}</strong><small>${world.buildings[q]?'Выполнен':quest()===q?(world.accepted?'В работе':'Доступен'):'После дома Эммы'}</small></div>`).join('')
   const architect=`<div class="journal-item"><strong>Дом мечты Ники</strong><small>${world.landmark?'Построен · '+world.landmark.floors.length+' эт.':world.buildings.bakery?'Открыт участок':'После пекарни'}</small></div>`
-  popup('Журнал заказов',records+architect+`<p>Награды архитектора · ${world.rewards} ★</p>`)
+  const riverOrders=`<div class="journal-item"><strong>Акведук через реку</strong><small>${world.riverworks?'Построен':world.landmark?'Доступен':'После дома Ники'}</small></div>
+    <div class="journal-item"><strong>Сад у водосборника</strong><small>${world.riverworks?.garden?'Открыт для жителей':world.riverworks?'Доступен':'После акведука'}</small></div>`
+  popup('Журнал заказов',records+architect+riverOrders+(world.riverworks?historyNote(false):'')+(world.riverworks?.garden?historyNote(true):'')+`<p>Награды архитектора · ${world.rewards} ★</p>`)
 }
 const palettes=[
   ['#bfd5ca','#719375','#45684e','#eee1c5','#995e41'],['#c6e6fa','#88b992','#388960','#f7d88c','#cb685c'],
@@ -160,6 +163,42 @@ function start(){
   world={...freshWorld(),theme:world.theme,quality:world.quality}
   persist();close();show('city')
 }
+let heights=[2,4]
+let beds:Plant[]=[]
+let brush:Plant='path'
+function civicEditor(garden:boolean){
+  popup(garden?'Сад у водосборника':'Акведук через реку',
+    (garden?gardenForm(beds,brush):aqueductForm(heights))+historyNote(garden)+
+    '<p role="status" id="river-feedback"></p>'+button(garden?'plant-garden':'run-water',garden?'Открыть сад':'Пустить воду','check'))
+}
+modal.addEventListener('change',event=>{
+  const el=event.target
+  if(!(el instanceof HTMLSelectElement)||el.dataset.support===undefined)return
+  const index=Number(el.dataset.support)
+  heights[index]=Number(el.value)
+  civicEditor(false)
+  modal.querySelector<HTMLElement>(`[data-support="${index}"]`)?.focus()
+})
+modal.addEventListener('click',event=>{
+  if(!(event.target instanceof Element))return
+  const el=event.target.closest<HTMLButtonElement>('button[data-brush],button[data-cell]')
+  if(!el)return
+  if(el.dataset.brush && Object.hasOwn(plantNames,el.dataset.brush))brush=el.dataset.brush as Plant
+  if(el.dataset.cell!==undefined)beds[Number(el.dataset.cell)]=brush
+  civicEditor(true)
+  modal.querySelector<HTMLElement>(el.dataset.cell!==undefined?`[data-cell="${el.dataset.cell}"]`:`[data-brush="${brush}"]`)?.focus()
+})
+function finishCivic(garden:boolean){
+  if(!world.landmark || (garden&&!world.riverworks))return
+  const stop=waterStops(heights)
+  const error=garden?gardenIssue(beds):stop<0?'':`Вода остановилась перед ${stop===3?'водосборником':'опорой '+stop}. Следующая отметка должна быть ниже предыдущей.`
+  if(error){modal.querySelector('#river-feedback')!.textContent=error;return}
+  world={...world,riverworks:garden?{...world.riverworks!,garden:[...beds]}:{heights:[...heights]}}
+  persist();close();show('city')
+  popup(garden?'Первые гости в саду':'Вода дошла до берега!',
+    `<p>${garden?'Эмма прошла от калитки к скамье. Теперь у неё есть тенистое место у цветника.':'Лев наполняет кувшин. Вода прошла весь канал самотёком благодаря перепаду высот.'}</p>`+
+    historyNote(garden).replace('<details ','<details open ')+button('city','Посмотреть в городе','map'))
+}
 function act(action:string){
   if(action.startsWith('story-')){openStory(action.slice(6));return}
   const answer=action.match(/^answer-([a-z]+)-([01])$/)
@@ -176,6 +215,10 @@ function act(action:string){
     case 'continue':if(saved){world=saved;show('city')}break
     case 'workshop':window.location.assign(new URL('./workshop.html',document.baseURI).href);break
     case 'nika':if(world.buildings.bakery)window.location.assign(new URL('./workshop.html?mode=career&quest=landmark',document.baseURI).href);break
+    case 'aqueduct':if(world.landmark&&!world.riverworks){heights=[2,4];civicEditor(false)}break
+    case 'garden':if(world.riverworks){beds=world.riverworks.garden?.slice()??['grass','grass','grass','path','grass','path','grass','grass','grass'];brush='path';civicEditor(true)}break
+    case 'plant-garden':finishCivic(true);break
+    case 'run-water':finishCivic(false);break
     case 'settings':settings();break
     case 'book':openBook();break
     case 'themes':themes();break
@@ -188,7 +231,7 @@ function act(action:string){
     case 'close':close();break
     case 'city':close();show('city');break
     case 'menu':close();show('menu');break
-    case 'reset':popup('Сбросить прогресс?',`<p>Оба участка, чертёж и журнал заказов будут очищены.</p><div class="row">${button('confirm-reset','Сбросить','x')}${button('close','Отмена','back','minor')}</div>`);break
+    case 'reset':popup('Сбросить прогресс?',`<p>Город, его сады, чертежи и журнал заказов будут очищены.</p><div class="row">${button('confirm-reset','Сбросить','x')}${button('close','Отмена','back','minor')}</div>`);break
     case 'confirm-reset':if(clear()){resetCareerDrafts();resetLearning();saved=null;world=freshWorld();close();show('menu')}else tell('Хранилище недоступно. Сбросить прогресс не удалось.');break
   }
 }
