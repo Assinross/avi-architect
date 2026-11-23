@@ -2,6 +2,7 @@ import * as T from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { plot, type BuildingModel, type CityWorld, type Purpose } from './model'
 import { Artist, disposeGroup, palettes, shapes, vec, type Palette } from './rendering/art'
+import { configureTouchNavigation } from './rendering/touch-navigation'
 import { landscape, lots, landmarkLot, unit } from './rendering/land'
 import { cityLandmark } from './rendering/city-landmark'
 import { STOREY_HEIGHT,type MultiStoreyPlan } from './multistorey'
@@ -83,8 +84,10 @@ export class Valley{
     this.renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'})
     this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap
     this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.08
+    this.renderer.domElement.setAttribute('aria-label','3D-город. Одним пальцем перемещай вид, двумя вращай, щипком меняй масштаб.')
     this.host.appendChild(this.renderer.domElement)
     this.controls=new OrbitControls(this.camera,this.renderer.domElement)
+    configureTouchNavigation(this.controls)
     this.controls.enableDamping=true;this.controls.dampingFactor=.095
     this.controls.maxPolarAngle=Math.PI*.475;this.controls.minPolarAngle=.22
     this.controls.minDistance=5;this.controls.maxDistance=57
