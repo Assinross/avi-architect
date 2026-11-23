@@ -122,10 +122,11 @@ export function townHall(a:Artist,p:Palette,theme:number) {
     // Side and back walls; the front is a real hole for the window.
     for(const side of [-1,1]){
       a.put('box',xx+side*.56,5.57,dormerCenter,.14,1.40,.98,p.plaster)
-      a.put('box',xx+side*.45,5.57,facadeZ,.36,1.40,.14,p.plaster)
+      a.put('box',xx+side*.525,5.57,facadeZ,.21,1.40,.14,p.plaster)
     }
-    a.put('box',xx,5.04,facadeZ,.55,.34,.14,p.plaster)
-    a.put('box',xx,6.16,facadeZ,.55,.22,.14,p.plaster)
+    // A slightly wider window lets the interior toys remain legible from town.
+    a.put('box',xx,5.00,facadeZ,.84,.26,.14,p.plaster)
+    a.put('box',xx,6.18,facadeZ,.84,.18,.14,p.plaster)
     a.put('box',xx,5.60,dormerFront-.98,1.20,1.40,.12,shade(p.wood,-.15))
     a.put('box',xx,5.23,dormerCenter,1.05,.09,.85,shade(p.wood,.07))
     // Dark recess makes the stored figures stand out through the glazing.
@@ -180,17 +181,17 @@ export function townHall(a:Artist,p:Palette,theme:number) {
       a.put('box',xx+.28,5.91,dormerFront-.59,.17,.09,.16,0x6a482e)
     }
     // Actual light-transmitting pane, backed by the visible toy storeroom.
-    const glass=new T.Mesh(new T.PlaneGeometry(.54,.77),atticGlass)
+    const glass=new T.Mesh(new T.PlaneGeometry(.78,.90),atticGlass)
     glass.position.set(xx,5.61,dormerFront+.075)
     glass.name='town-hall-attic-window-'+index
     a.group.add(glass)
     for(const side of [-1,1]){
-      a.put('box',xx+side*.30,5.61,dormerFront+.11,.07,.91,.09,p.wood)
-      a.put('box',xx,5.61+side*.42,dormerFront+.11,.66,.07,.09,p.wood)
+      a.put('box',xx+side*.435,5.61,dormerFront+.11,.075,1.03,.09,p.wood)
+      a.put('box',xx,5.61+side*.48,dormerFront+.11,.94,.075,.09,p.wood)
     }
-    a.put('box',xx,5.61,dormerFront+.15,.038,.77,.035,0xf1e3c7)
-    a.put('box',xx,5.66,dormerFront+.15,.55,.037,.035,0xf1e3c7)
-    a.put('box',xx,5.15,dormerFront+.08,.82,.12,.26,p.stone)
+    a.put('box',xx,5.61,dormerFront+.15,.043,.90,.035,0xf1e3c7)
+    a.put('box',xx,5.66,dormerFront+.15,.78,.039,.035,0xf1e3c7)
+    a.put('box',xx,5.13,dormerFront+.08,.98,.12,.26,p.stone)
     a.put('box',xx,6.43,dormerCenter-.01,1.62,.15,1.62,shade(p.roof,-.08),.27)
   }
   a.put('box',x-3,6.68,z-1.12,.70,2.65,.77,p.stone)
