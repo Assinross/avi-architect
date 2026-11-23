@@ -83,6 +83,35 @@ body.career.show-preview .workspace{grid-template-columns:minmax(250px,294px) mi
  }
  .legend { gap:7px; padding:0 12px 12px; }
 }
+
+/* On desktop the existing selectors remain available; petals are mobile-only. */
+.tool-grid .tool-stair-cluster .stair-petals { display:none; }
+@media (max-width:790px) {
+ .stair-settings { display:none!important; }
+ .tool-grid > .tool-stair-cluster > [data-stair-toggle] {
+  display:flex; flex-direction:column; gap:4px; width:100%; min-width:0;
+  min-height:56px; padding:6px 2px; border-radius:10px;
+ }
+ .tool-grid .tool-stair-cluster .stair-petals {
+  left:auto; right:-42px; transform:none;
+  width:min(282px,calc(100vw - 30px)); padding:12px; gap:10px;
+  border-radius:16px; align-items:stretch;
+ }
+ .tool-grid .tool-stair-cluster[data-open="true"] .stair-petals { display:grid; }
+ .stair-option-group { min-width:0; display:grid; gap:6px; }
+ .stair-option-group strong { text-align:left; font-size:11px; color:var(--muted); }
+ .stair-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+ .stair-options.stair-directions { grid-template-columns:repeat(4,minmax(0,1fr)); }
+ .tool-grid .tool-stair-cluster .stair-options .stair-choice {
+  width:100%; min-width:0; min-height:40px; border-radius:10px;
+  display:flex; flex-direction:row; padding:7px 4px;
+  font-size:12px; line-height:1.15; box-shadow:none;
+ }
+ .tool-grid .tool-stair-cluster .stair-directions .stair-choice { font-size:23px; }
+ .tool-grid .tool-stair-cluster .stair-options .stair-choice[aria-pressed="true"] {
+  color:#fff; background:#315944; border-color:#315944;
+ }
+}
 </style>
 </head>
 <body>
@@ -113,7 +142,27 @@ body.career.show-preview .workspace{grid-template-columns:minmax(250px,294px) mi
       <button class="button" data-tool="window">Окно</button>
      </div>
     </div>
-    <button class="button" data-tool="stairs">Лестница ↑</button>
+    <div class="tool-cluster tool-stair-cluster" data-open="false">
+     <button class="button" type="button" data-tool="stairs" data-stair-toggle aria-expanded="false" aria-pressed="false" aria-controls="stairToolChoices" aria-haspopup="true">Лестница ↑</button>
+     <div class="tool-petals stair-petals" id="stairToolChoices" role="group" aria-label="Настройки лестницы">
+      <div class="stair-option-group" role="group" aria-label="Тип лестницы">
+       <strong>Тип лестницы</strong>
+       <div class="stair-options">
+        <button type="button" class="button stair-choice" data-stair-kind="straight" aria-pressed="true">Прямая</button>
+        <button type="button" class="button stair-choice" data-stair-kind="spiral" aria-pressed="false">Винтовая</button>
+       </div>
+      </div>
+      <div class="stair-option-group" role="group" aria-label="Направление лестницы">
+       <strong>Направление</strong>
+       <div class="stair-options stair-directions">
+        <button type="button" class="button stair-choice" data-stair-facing="north" aria-label="Север" title="Север" aria-pressed="true">↑</button>
+        <button type="button" class="button stair-choice" data-stair-facing="south" aria-label="Юг" title="Юг" aria-pressed="false">↓</button>
+        <button type="button" class="button stair-choice" data-stair-facing="east" aria-label="Восток" title="Восток" aria-pressed="false">→</button>
+        <button type="button" class="button stair-choice" data-stair-facing="west" aria-label="Запад" title="Запад" aria-pressed="false">←</button>
+       </div>
+      </div>
+     </div>
+    </div>
     <button class="button" data-tool="erase">Удалить</button>
    </div><label class="field stair-settings" style="margin-top:10px">Тип лестницы<select id="stairKind" class="button" aria-label="Тип лестницы"><option value="straight">Обычная · 2 клетки</option><option value="spiral">Винтовая · 1 клетка</option></select></label><label class="field stair-settings" style="margin-top:10px">Направление лестницы<select id="stairFacing" class="button" aria-label="Направление лестницы"><option value="north">↑ Север</option><option value="south">↓ Юг</option><option value="east">→ Восток</option><option value="west">← Запад</option></select></label><div class="status" id="status">Перетащи внешнюю стену, чтобы изменить размер комнаты без разрыва контура. Стены можно рисовать удерживанием и перетаскиванием.</div></div>
   <div class="section style-section"><h3 class="small-title">Стиль дома</h3><label class="field" for="buildingStyle">Оформление фасада<select id="buildingStyle" class="button" aria-label="Стиль дома"><option value="classic">Классический · черепица и цветы</option><option value="modern">Современный · стеклянная веранда</option></select></label><p>Меняет только 3D-оформление, без изменения сметы и плана.</p></div>
