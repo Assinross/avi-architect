@@ -26,6 +26,63 @@ body.career .workspace{grid-template-columns:minmax(250px,294px) minmax(400px,1f
 body.career.show-preview .workspace{grid-template-columns:minmax(250px,294px) minmax(400px,1fr) minmax(310px,.95fr)}
 @media(max-width:1250px){body.career .workspace,body.career.show-preview .workspace{grid-template-columns:280px minmax(0,1fr)}body.career .preview-panel{grid-column:2}}
 @media(max-width:790px){body.career .workspace,body.career.show-preview .workspace{grid-template-columns:1fr}body.career .preview-panel{grid-column:auto}}
+
+/* Shared toolbar elements stay as regular buttons on desktop. */
+.tool-cluster, .tool-petals { display:contents; }
+.tool-grid .tool-group-toggle { display:none; }
+.tool-grid .icon { width:18px; height:18px; flex:none; }
+.tool-grid .tool-short { display:none; }
+
+/* The mobile planner starts with the drawing, not the left sidebar. */
+@media (max-width:790px) {
+ .workspace, body.career .workspace, body.career.show-preview .workspace {
+  display:grid; grid-template-columns:minmax(0,1fr); gap:9px; padding:9px;
+ }
+ .controls-panel { display:contents; }
+ .controls-panel > .section {
+  min-width:0; padding:13px; background:var(--paper); border:1px solid var(--line);
+  border-radius:12px; box-shadow:0 5px 21px #29473210;
+ }
+ .plan-panel { order:0; min-width:0; }
+ .controls-panel > .tools-section { order:1; position:relative; z-index:2; overflow:visible; }
+ .controls-panel > .review-section { order:2; }
+ .controls-panel > .floors-section { order:3; }
+ .controls-panel > .intro-section { order:4; }
+ .controls-panel > .style-section { order:5; }
+ .controls-panel > .lesson-section { order:6; }
+ .controls-panel > .estimate-section { order:7; }
+ .preview-panel { order:8; min-width:0; }
+ .controls-panel > .dimensions-section { display:none; }
+ .tool-grid { grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; align-items:stretch; }
+ body.no-stairs .tool-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+ .tool-grid > .button, .tool-grid > .tool-cluster > .tool-group-toggle {
+  display:flex; flex-direction:column; gap:4px; width:100%; min-width:0; min-height:56px;
+  padding:6px 2px; border-radius:10px;
+ }
+ .tool-grid .button .icon { width:24px; height:24px; }
+ .tool-grid .tool-label { display:none; }
+ .tool-grid .tool-short {
+  display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; font-size:10px; line-height:1.15;
+ }
+ .tool-grid .tool-cluster { display:block; min-width:0; position:relative; }
+ .tool-grid .tool-cluster .tool-petals {
+  display:none; position:absolute; left:50%; bottom:calc(100% + 9px);
+  transform:translateX(-50%); z-index:3; gap:8px; align-items:flex-end;
+  padding:7px; background:#fffcf1; border:1px solid #cad7c4;
+  border-radius:20px; box-shadow:0 5px 18px #1d403049;
+ }
+ .tool-grid .tool-cluster[data-open="true"] .tool-petals { display:flex; }
+ .tool-grid .tool-petals .button {
+  display:flex; flex-direction:column; gap:5px; width:70px; min-height:66px;
+  padding:7px 3px; border-radius:34px; box-shadow:0 2px 6px #274b391c;
+ }
+ .tool-grid .tool-petals .tool-short { font-size:9px; }
+ .tool-grid .tool-cluster[data-open="true"] .tool-group-toggle {
+  background:#dce9d9; border-color:#6b9174;
+ }
+ .legend { gap:7px; padding:0 12px 12px; }
+}
 </style>
 </head>
 <body>
@@ -35,17 +92,36 @@ body.career.show-preview .workspace{grid-template-columns:minmax(250px,294px) mi
  <div class="actions"><a class="button" href="./">← В город</a><button class="button" id="previewToggle" hidden>Посмотреть 3D</button><button class="button primary" id="publish" title="После выполнения заказов — построить дом на третьем участке">Поселить в городе</button><button class="button" id="fromCity">Дом из города</button><button class="button" id="undo">↶ Отменить</button><button class="button" id="redo">↷ Повторить</button><button class="button" id="import">Импорт JSON</button><input id="importFile" type="file" accept="application/json,.json" hidden><button class="button" id="export">Экспорт JSON</button><button class="button" id="reset">Новый проект</button></div>
 </header>
 <div class="workspace">
- <aside class="panel">
-  <div class="section"><div class="kicker">Свободное проектирование</div><h2 id="mainHeading">Мой дом мечты</h2><p id="modeDescription">Создавай этажи разной площади, планируй лестницы и комнаты. Колонны и крыши рассчитываются автоматически.</p></div>
-    <div class="section"><h3 class="small-title">Этажи <span class="badge" id="floorcount">1</span></h3><div class="floor-list" id="floors"></div><div class="two" style="margin-top:9px"><button class="button primary" id="add">＋ Этаж</button><button class="button" id="remove">− Верхний</button></div></div>
-  <div class="section"><h3 class="small-title">Наружные стены: <span id="selectedFloor">1 этаж</span></h3><div class="dimensions"><label class="field">Начало X<input id="x0" type="number" min="0" max="11" step="1"></label><label class="field">Начало Z<input id="z0" type="number" min="0" max="9" step="1"></label><label class="field">Ширина, м<input id="w" type="number" min="1" max="12" step="1"></label><label class="field">Глубина, м<input id="d" type="number" min="1" max="10" step="1"></label></div><p>Изменяй габариты этажа. Положение колонн и крыши перестраивается автоматически.</p></div>
-  <div class="section"><h3 class="small-title">Инструменты плана</h3><div class="tool-grid" id="tools"><button class="button" data-tool="inspect">Выделить / двигать</button><button class="button" data-tool="outline">Контур комнаты</button><button class="button" data-tool="partition">Стена / перегородка</button><button class="button" data-tool="stairs">Лестница ↑</button><button class="button" data-tool="door">Дверь</button><button class="button" data-tool="window">Окно</button><button class="button" data-tool="erase">Удалить</button></div><label class="field" style="margin-top:10px">Тип лестницы<select id="stairKind" class="button" aria-label="Тип лестницы"><option value="straight">Обычная · 2 клетки</option><option value="spiral">Винтовая · 1 клетка</option></select></label><label class="field" style="margin-top:10px">Направление лестницы<select id="stairFacing" class="button" aria-label="Направление лестницы"><option value="north">↑ Север</option><option value="south">↓ Юг</option><option value="east">→ Восток</option><option value="west">← Запад</option></select></label><div class="status" id="status">Перетащи внешнюю стену, чтобы изменить размер комнаты без разрыва контура. Стены можно рисовать удерживанием и перетаскиванием.</div></div>
-  <div class="section"><h3 class="small-title">Стиль дома</h3><label class="field" for="buildingStyle">Оформление фасада<select id="buildingStyle" class="button" aria-label="Стиль дома"><option value="classic">Классический · черепица и цветы</option><option value="modern">Современный · стеклянная веранда</option></select></label><p>Меняет только 3D-оформление, без изменения сметы и плана.</p></div>
-  <div class="section"><h3 class="small-title">Чему учимся</h3><div class="ed-inline-lesson"><strong id="learningTitle">Свободное проектирование</strong><p id="learningObjective"></p><p class="ed-idea-small" id="learningExperiment"></p><button class="button" style="width:100%;margin-top:10px" id="knowledge">📖 Книга архитектора</button></div></div>
-  <div class="section" id="careerReview" hidden><h3 class="small-title">Проверка заказа</h3><div class="checklist" style="padding:0"><ul id="careerChecks"></ul></div></div>
-  <div class="section"><h3 class="small-title">Смета проекта</h3><div id="estimate"></div></div>
+ <aside class="panel controls-panel">
+  <div class="section intro-section"><div class="kicker">Свободное проектирование</div><h2 id="mainHeading">Мой дом мечты</h2><p id="modeDescription">Создавай этажи разной площади, планируй лестницы и комнаты. Колонны и крыши рассчитываются автоматически.</p></div>
+    <div class="section floors-section"><h3 class="small-title">Этажи <span class="badge" id="floorcount">1</span></h3><div class="floor-list" id="floors"></div><div class="two" style="margin-top:9px"><button class="button primary" id="add">＋ Этаж</button><button class="button" id="remove">− Верхний</button></div></div>
+  <div class="section dimensions-section"><h3 class="small-title">Наружные стены: <span id="selectedFloor">1 этаж</span></h3><div class="dimensions"><label class="field">Начало X<input id="x0" type="number" min="0" max="11" step="1"></label><label class="field">Начало Z<input id="z0" type="number" min="0" max="9" step="1"></label><label class="field">Ширина, м<input id="w" type="number" min="1" max="12" step="1"></label><label class="field">Глубина, м<input id="d" type="number" min="1" max="10" step="1"></label></div><p>Изменяй габариты этажа. Положение колонн и крыши перестраивается автоматически.</p></div>
+  <div class="section tools-section"><h3 class="small-title">Инструменты плана</h3>
+   <div class="tool-grid" id="tools" aria-label="Инструменты планировки">
+    <button class="button" data-tool="inspect">Выделить / двигать</button>
+    <div class="tool-cluster" data-open="false">
+     <button class="button tool-group-toggle" type="button" data-tool-group="walls" aria-expanded="false" aria-pressed="false" aria-controls="wallToolChoices" aria-haspopup="true">Стены и комнаты</button>
+     <div class="tool-petals" id="wallToolChoices" role="group" aria-label="Стены и комнаты">
+      <button class="button" data-tool="outline">Контур комнаты</button>
+      <button class="button" data-tool="partition">Стена / перегородка</button>
+     </div>
+    </div>
+    <div class="tool-cluster" data-open="false">
+     <button class="button tool-group-toggle" type="button" data-tool-group="openings" aria-expanded="false" aria-pressed="false" aria-controls="openingToolChoices" aria-haspopup="true">Проёмы</button>
+     <div class="tool-petals" id="openingToolChoices" role="group" aria-label="Проёмы">
+      <button class="button" data-tool="door">Дверь</button>
+      <button class="button" data-tool="window">Окно</button>
+     </div>
+    </div>
+    <button class="button" data-tool="stairs">Лестница ↑</button>
+    <button class="button" data-tool="erase">Удалить</button>
+   </div><label class="field stair-settings" style="margin-top:10px">Тип лестницы<select id="stairKind" class="button" aria-label="Тип лестницы"><option value="straight">Обычная · 2 клетки</option><option value="spiral">Винтовая · 1 клетка</option></select></label><label class="field stair-settings" style="margin-top:10px">Направление лестницы<select id="stairFacing" class="button" aria-label="Направление лестницы"><option value="north">↑ Север</option><option value="south">↓ Юг</option><option value="east">→ Восток</option><option value="west">← Запад</option></select></label><div class="status" id="status">Перетащи внешнюю стену, чтобы изменить размер комнаты без разрыва контура. Стены можно рисовать удерживанием и перетаскиванием.</div></div>
+  <div class="section style-section"><h3 class="small-title">Стиль дома</h3><label class="field" for="buildingStyle">Оформление фасада<select id="buildingStyle" class="button" aria-label="Стиль дома"><option value="classic">Классический · черепица и цветы</option><option value="modern">Современный · стеклянная веранда</option></select></label><p>Меняет только 3D-оформление, без изменения сметы и плана.</p></div>
+  <div class="section lesson-section"><h3 class="small-title">Чему учимся</h3><div class="ed-inline-lesson"><strong id="learningTitle">Свободное проектирование</strong><p id="learningObjective"></p><p class="ed-idea-small" id="learningExperiment"></p><button class="button" style="width:100%;margin-top:10px" id="knowledge">📖 Книга архитектора</button></div></div>
+  <div class="section review-section" id="careerReview" hidden><h3 class="small-title">Проверка заказа</h3><div class="checklist" style="padding:0"><ul id="careerChecks"></ul></div></div>
+  <div class="section estimate-section"><h3 class="small-title">Смета проекта</h3><div id="estimate"></div></div>
  </aside>
- <main class="panel">
+ <main class="panel plan-panel">
   <div class="viewport-head"><h2>План <span id="floorTitle">1 этажа</span></h2><small>Зажми и тяни · сетка 1 м · Esc отмена</small></div>
   <div class="drawing" id="planDrawing"><svg id="plan" role="group" aria-label="Интерактивный план этажа" viewBox="0 0 560 485" preserveAspectRatio="xMidYMid meet"></svg></div>
   <div class="legend"><span><i class="dot" style="background:#607a6d"></i>Несущие стены</span><span><i class="dot" style="background:#a9886d"></i>Перегородки</span><span><i class="dot" style="background:#e9c48c"></i>Нижний этаж</span><span><i class="dot" style="background:#8fb9b9"></i>Лестница</span><span><i class="dot" style="background:#c89f7b"></i>Нависающий этаж / опоры</span></div>

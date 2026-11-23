@@ -7,6 +7,7 @@ import { builderIssues, commissionModel, profiles } from './builder-policy';
 import { complete, currentQuest } from './model';
 import { lessons,bookMarkup,storyMarkup,storyById,recordLearning,readLearning,checkAnswer,installPhotoFallback } from './education';
 import * as Gestures from './plan-interactions';
+import { icon } from './icons';
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
@@ -14,6 +15,7 @@ const params=new URLSearchParams(location.search);
 const careerQuest=params.get('mode')==='career' ? params.get('quest') : null;
 const mode=['home','bakery','landmark'].includes(careerQuest)?careerQuest:'free';
 const profile=profiles[mode];
+if(!profile.stairs)document.body.classList.add('no-stairs');
 const key=mode==='free'?'avi-architect.multistorey-workshop.v1':`avi-architect.career.${mode}.v1`;
 document.title=profile.title+' · Avi Architect';
 $('modeTitle').textContent=mode==='free'?'СВОБОДНАЯ МАСТЕРСКАЯ · ВСЕ ИНСТРУМЕНТЫ ОТКРЫТЫ':'КАРЬЕРА АРХИТЕКТОРА · ПОЭТАПНОЕ РАЗВИТИЕ';
@@ -23,6 +25,18 @@ $('modeDescription').textContent=mode==='free'
   :mode==='home'?'Первый заказ: научись менять контур дома, добавлять вход и окна. Перегородки и этажи откроются позже.'
   :mode==='bakery'?'Второй заказ: теперь доступны внутренние перегородки. Этажи и лестницы откроются после пекарни.'
   :'Третий заказ: многоэтажность открыта. Спроектируй двухэтажный дом со ступенями и рассчитай бюджет.';
+// Keep full button labels on desktop and accessible names on mobile.
+const shortToolLabels={
+ inspect:'Выбор',outline:'Контур',partition:'Стена',walls:'Стены',
+ openings:'Проёмы',door:'Дверь',window:'Окно',stairs:'Лестница',erase:'Удалить'
+};
+$('tools').querySelectorAll('button').forEach(button=>{
+ const label=button.textContent.trim();
+ const name=button.dataset.tool||button.dataset.toolGroup;
+ button.title=label;
+ button.setAttribute('aria-label',label);
+ button.innerHTML=`${icon(name)}<span class="tool-label">${label}</span><span class="tool-short" aria-hidden="true">${shortToolLabels[name]}</span>`;
+});
 const lesson=mode==='free'?null:lessons[mode];
 $('learningTitle').textContent=lesson?.title||'Экспериментируй без ограничений';
 $('learningObjective').textContent=lesson?.objective||'Проверяй размеры, материалы и форму здания в 3D. Любая идея допустима, если конструкция проходит проверку.';
@@ -252,6 +266,11 @@ function paint(){
   return `<button class="floor" data-floor="${i}" aria-pressed="${i===active}">▣ ${i+1} этаж <span>${Engine.rectangleArea(Engine.footprint(floor)||{x0:0,x1:0,z0:0,z1:0})} м²</span></button>`}).join('');
  $('remove').disabled=project.floors.length===1||!profile.stairs;$('add').disabled=project.floors.length>=profile.maxFloors;$('undo').disabled=!past.length;$('redo').disabled=!future.length;
  $('tools').querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===tool)));
+ $('tools').querySelectorAll('[data-tool-group]').forEach(b=>{
+  const activeGroup=b.dataset.toolGroup==='walls'?['outline','partition'].includes(tool):['door','window'].includes(tool);
+  b.setAttribute('aria-pressed',String(activeGroup));
+ });
+ document.querySelectorAll('.stair-settings').forEach(label=>{label.hidden=tool!=='stairs'||!profile.stairs;});
  $('area').textContent=`${Engine.totalArea(project)} м²`;$('columns').textContent=posts.length;
  $('roofArea').textContent=`${roof.reduce((n,r)=>n+Engine.rectangleArea(r),0)} м²`;
  const entries=[['Наружные стены',price.outerWalls],['Перегородки',price.partitions],['Окна и двери',price.openings],['Перекрытия',price.slabs],['Лестницы',price.stairs],['Опорные колонны',price.columns],['Кровля и террасы',price.roofs]];
@@ -274,7 +293,28 @@ function setFootprint(){
  message('Контур изменён, наружные стены соединены. Окна и перегородки адаптированы.');
 }
 $('floors').addEventListener('click',e=>{const b=e.target.closest('[data-floor]');if(!b)return;active=+b.dataset.floor;start=null;paint();message('План этажа выбран. Нижний контур виден светлым пунктиром.')});
-$('tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]');if(!b||b.hidden||b.disabled)return;tool=b.dataset.tool;start=null;paint();message({outline:'Потяни от первого угла комнаты до противоположного: все четыре внешние стены подстроятся.',partition:'Нажми и тяни, чтобы нарисовать прямую стену. Можно также выбрать две точки по очереди.',stairs:'Выбери тип лестницы, затем начальную клетку.',door:'Нажми на метровый участок стены.',window:'Нажми на метровый участок стены; соседние окна объединятся.',erase:'Нажми на элемент для удаления.',inspect:'Тяни внешнюю стену, перегородку, её конец, окно, лестницу или всю комнату. Esc отменяет перетаскивание.'}[tool])});
+function closeToolPetals(except=null){
+ $('tools').querySelectorAll('.tool-cluster').forEach(cluster=>{
+  const expanded=cluster===except;
+  cluster.dataset.open=String(expanded);
+  cluster.querySelector('[data-tool-group]').setAttribute('aria-expanded',String(expanded));
+ });
+}
+$('tools').addEventListener('click',e=>{
+ const group=e.target.closest('[data-tool-group]');
+ if(group){
+  const cluster=group.closest('.tool-cluster');
+  closeToolPetals(cluster.dataset.open==='true'?null:cluster);
+  return;
+ }
+ const b=e.target.closest('[data-tool]');
+ if(!b||b.hidden||b.disabled)return;
+ closeToolPetals();
+ tool=b.dataset.tool;start=null;paint();
+ message({outline:'Потяни от первого угла комнаты до противоположного: все четыре внешние стены подстроятся.',partition:'Нажми и тяни, чтобы нарисовать прямую стену. Можно также выбрать две точки по очереди.',stairs:'Выбери тип лестницы, затем начальную клетку.',door:'Нажми на метровый участок стены.',window:'Нажми на метровый участок стены; соседние окна объединятся.',erase:'Нажми на элемент для удаления.',inspect:'Тяни внешнюю стену, перегородку, её конец, окно, лестницу или всю комнату. Esc отменяет перетаскивание.'}[tool]);
+});
+document.addEventListener('click',e=>{if(!e.target.closest('#tools'))closeToolPetals();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeToolPetals();});
 
 /**
  * One pointer gesture = one undo step, for mouse, pen and touch.
