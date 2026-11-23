@@ -84,3 +84,43 @@ test('Оформление дома: стеклянная веранда сох�
   expect(saved?.style).toBe('classic')
   expect(errors).toEqual([])
 })
+
+test('Мобильная мастерская: план первым, панель и подменю инструментов', async ({page}) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.setViewportSize({width:390,height:844})
+  await page.goto('/workshop.html?mode=career&quest=landmark')
+
+  await expect(page.locator('.dimensions-section')).toBeHidden()
+  await expect(page.locator('#careerReview')).toBeVisible()
+  const positions=await page.evaluate(() =>
+    ['.plan-panel','.tools-section','#careerReview','.floors-section']
+      .map(selector => document.querySelector(selector)!.getBoundingClientRect().top))
+  expect(positions).toEqual([...positions].sort((a,b)=>a-b))
+
+  const tools=page.locator('#tools')
+  await expect(tools.locator('button:visible')).toHaveCount(5)
+  const walls=tools.locator('[data-tool-group="walls"]')
+  await walls.click()
+  await expect(walls).toHaveAttribute('aria-expanded','true')
+  await expect(tools.locator('[data-tool="outline"]')).toBeVisible()
+  await tools.locator('[data-tool="partition"]').click()
+  await expect(walls).toHaveAttribute('aria-expanded','false')
+  await expect(walls).toHaveAttribute('aria-pressed','true')
+
+  const openings=tools.locator('[data-tool-group="openings"]')
+  await openings.click()
+  await expect(tools.locator('[data-tool="window"]')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(openings).toHaveAttribute('aria-expanded','false')
+  await openings.click()
+  await tools.locator('[data-tool="window"]').click()
+  await expect(openings).toHaveAttribute('aria-pressed','true')
+
+  await tools.locator('[data-tool="stairs"]').click()
+  await expect(page.locator('#stairKind')).toBeVisible()
+  await tools.locator('[data-tool="erase"]').click()
+  await expect(page.locator('#stairKind')).toBeHidden()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+  expect(errors).toEqual([])
+})
