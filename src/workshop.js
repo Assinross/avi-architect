@@ -33,6 +33,7 @@ const shortToolLabels={
 $('tools').querySelectorAll('button').forEach(button=>{
  const label=button.textContent.trim();
  const name=button.dataset.tool||button.dataset.toolGroup;
+ if(!name)return; // Stair choice buttons keep their visible labels and arrow icons.
  button.title=label;
  button.setAttribute('aria-label',label);
  button.innerHTML=`${icon(name)}<span class="tool-label">${label}</span><span class="tool-short" aria-hidden="true">${shortToolLabels[name]}</span>`;
@@ -138,7 +139,9 @@ if(!profile.live3d){
 }
 if(!profile.partitions)document.querySelector('[data-tool="partition"]').hidden=true;
 if(!profile.stairs) {
-  document.querySelector('[data-tool="stairs"]').hidden=true;
+  const stairButton=document.querySelector('[data-tool="stairs"]');
+  stairButton.hidden=true;
+  stairButton.closest('.tool-stair-cluster').hidden=true;
   $('stairFacing').closest('label').hidden=true;
   $('stairKind').closest('label').hidden=true;
 }
@@ -271,6 +274,7 @@ function paint(){
   b.setAttribute('aria-pressed',String(activeGroup));
  });
  document.querySelectorAll('.stair-settings').forEach(label=>{label.hidden=tool!=='stairs'||!profile.stairs;});
+ syncStairChoices();
  $('area').textContent=`${Engine.totalArea(project)} м²`;$('columns').textContent=posts.length;
  $('roofArea').textContent=`${roof.reduce((n,r)=>n+Engine.rectangleArea(r),0)} м²`;
  const entries=[['Наружные стены',price.outerWalls],['Перегородки',price.partitions],['Окна и двери',price.openings],['Перекрытия',price.slabs],['Лестницы',price.stairs],['Опорные колонны',price.columns],['Кровля и террасы',price.roofs]];
@@ -293,14 +297,42 @@ function setFootprint(){
  message('Контур изменён, наружные стены соединены. Окна и перегородки адаптированы.');
 }
 $('floors').addEventListener('click',e=>{const b=e.target.closest('[data-floor]');if(!b)return;active=+b.dataset.floor;start=null;paint();message('План этажа выбран. Нижний контур виден светлым пунктиром.')});
+function syncStairChoices(){
+ $('tools').querySelectorAll('[data-stair-kind]').forEach(b=>
+  b.setAttribute('aria-pressed',String(b.dataset.stairKind===$('stairKind').value)));
+ $('tools').querySelectorAll('[data-stair-facing]').forEach(b=>
+  b.setAttribute('aria-pressed',String(b.dataset.stairFacing===$('stairFacing').value)));
+}
 function closeToolPetals(except=null){
  $('tools').querySelectorAll('.tool-cluster').forEach(cluster=>{
   const expanded=cluster===except;
   cluster.dataset.open=String(expanded);
-  cluster.querySelector('[data-tool-group]').setAttribute('aria-expanded',String(expanded));
+  cluster.querySelector('[data-tool-group], [data-stair-toggle]')
+   ?.setAttribute('aria-expanded',String(expanded));
  });
 }
 $('tools').addEventListener('click',e=>{
+ const stairChoice=e.target.closest('[data-stair-kind], [data-stair-facing]');
+ if(stairChoice){
+  const kind=stairChoice.hasAttribute('data-stair-kind');
+  const select=$(kind?'stairKind':'stairFacing');
+  const value=kind?stairChoice.dataset.stairKind:stairChoice.dataset.stairFacing;
+  if(select.value!==value){
+   select.value=value;
+   select.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  tool='stairs';start=null;paint();
+  message('Лестница настроена. Нажми на плане место для её установки.');
+  return;
+ }
+ const stairToggle=e.target.closest('[data-stair-toggle]');
+ if(stairToggle && matchMedia('(max-width:790px)').matches){
+  const cluster=stairToggle.closest('.tool-cluster');
+  closeToolPetals(cluster.dataset.open==='true'?null:cluster);
+  tool='stairs';start=null;paint();
+  message('Выбери тип и направление лестницы, затем точку установки на плане.');
+  return;
+ }
  const group=e.target.closest('[data-tool-group]');
  if(group){
   const cluster=group.closest('.tool-cluster');
