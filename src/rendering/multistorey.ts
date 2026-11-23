@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { STOREY_HEIGHT, type MultiStoreyPlan } from '../multistorey'
 import { palettes, disposeGroup } from './art'
 import { cityLandmark } from './city-landmark'
+import { configureTouchNavigation } from './touch-navigation'
 
 /**
  * A camera and lighting adapter around the exact city geometry generator.
@@ -43,10 +44,11 @@ export class MultiStoreyView {
     this.renderer.toneMappingExposure=1.18
     this.renderer.shadowMap.enabled=true
     this.renderer.shadowMap.type=T.PCFSoftShadowMap
-    this.renderer.domElement.setAttribute('aria-label','3D-вид дома. Перетаскивай мышью для вращения, колесом меняй масштаб.')
+    this.renderer.domElement.setAttribute('aria-label','3D-вид дома. Мышью вращай, колесом меняй масштаб; на экране одним пальцем перемещай вид, двумя вращай и меняй масштаб.')
     host.appendChild(this.renderer.domElement)
     this.camera.position.set(20,18,23)
     this.controls=new OrbitControls(this.camera,this.renderer.domElement)
+    configureTouchNavigation(this.controls)
     this.controls.enableDamping=true
     this.controls.dampingFactor=.09
     this.controls.minDistance=6
