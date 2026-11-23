@@ -121,6 +121,13 @@ test('Мобильная мастерская: план первым, панел
   await expect(page.locator('#stairKind')).toBeVisible()
   await tools.locator('[data-tool="erase"]').click()
   await expect(page.locator('#stairKind')).toBeHidden()
+  await expect(tools.locator('button:visible > svg.icon')).toHaveCount(5)
+
+  // The same toolbar must fit a narrow phone; early orders have no stair tool.
+  await page.setViewportSize({width:320,height:720})
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+  await page.goto('/workshop.html?mode=career&quest=home')
+  await expect(page.locator('#tools button:visible')).toHaveCount(4)
+  await expect(page.locator('.dimensions-section')).toBeHidden()
   expect(errors).toEqual([])
 })
