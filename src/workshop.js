@@ -16,6 +16,21 @@ const careerQuest=params.get('mode')==='career' ? params.get('quest') : null;
 const mode=['home','bakery','landmark'].includes(careerQuest)?careerQuest:'free';
 const profile=profiles[mode];
 if(!profile.stairs)document.body.classList.add('no-stairs');
+
+// Mobile header menu: main actions stay visible; secondary actions open on demand.
+const headerMenuToggle=$('headerMenuToggle'),headerExtra=$('headerExtra');
+function setHeaderMenu(open){
+ const expanded=open&&matchMedia('(max-width:790px)').matches;
+ headerExtra.dataset.open=String(expanded);
+ headerMenuToggle.setAttribute('aria-expanded',String(expanded));
+}
+headerMenuToggle.addEventListener('click',()=>setHeaderMenu(headerExtra.dataset.open!=='true'));
+headerExtra.addEventListener('click',e=>{if(e.target.closest('button'))setHeaderMenu(false)});
+document.addEventListener('click',e=>{
+ if(e.target instanceof Element&&!e.target.closest('.header-actions'))setHeaderMenu(false);
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')setHeaderMenu(false)});
+matchMedia('(max-width:790px)').addEventListener('change',()=>setHeaderMenu(false));
 const key=mode==='free'?'avi-architect.multistorey-workshop.v1':`avi-architect.career.${mode}.v1`;
 document.title=profile.title+' · Avi Architect';
 $('modeTitle').textContent=mode==='free'?'СВОБОДНАЯ МАСТЕРСКАЯ · ВСЕ ИНСТРУМЕНТЫ ОТКРЫТЫ':'КАРЬЕРА АРХИТЕКТОРА · ПОЭТАПНОЕ РАЗВИТИЕ';
@@ -267,7 +282,9 @@ function paint(){
  if(f.stairToNext){$('stairFacing').value=f.stairToNext.facing;$('stairKind').value=f.stairToNext.kind||'straight';}
  $('floors').innerHTML=[...project.floors].reverse().map((floor,ri)=>{const i=project.floors.length-1-ri;
   return `<button class="floor" data-floor="${i}" aria-pressed="${i===active}">▣ ${i+1} этаж <span>${Engine.rectangleArea(Engine.footprint(floor)||{x0:0,x1:0,z0:0,z1:0})} м²</span></button>`}).join('');
- $('remove').disabled=project.floors.length===1||!profile.stairs;$('add').disabled=project.floors.length>=profile.maxFloors;$('undo').disabled=!past.length;$('redo').disabled=!future.length;
+ $('remove').disabled=project.floors.length===1||!profile.stairs;$('add').disabled=project.floors.length>=profile.maxFloors;
+ $('undo').disabled=$('undoMobile').disabled=!past.length;
+ $('redo').disabled=$('redoMobile').disabled=!future.length;
  $('tools').querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===tool)));
  $('tools').querySelectorAll('[data-tool-group]').forEach(b=>{
   const activeGroup=b.dataset.toolGroup==='walls'?['outline','partition'].includes(tool):['door','window'].includes(tool);
@@ -548,6 +565,8 @@ $('add').addEventListener('click',()=>{if(!profile.stairs||project.floors.length
 $('remove').addEventListener('click',()=>{if(!profile.stairs||project.floors.length<2)return;modify(()=>{project=Engine.removeTopFloor(project);active=Math.min(active,project.floors.length-1);start=null});message('Верхний этаж удалён.')});
 $('undo').addEventListener('click',()=>{if(!past.length)return;future.push(deep(project));project=past.pop();active=Math.min(active,project.floors.length-1);start=null;save();paint();message('Последнее действие отменено.')});
 $('redo').addEventListener('click',()=>{if(!future.length)return;past.push(deep(project));project=future.pop();active=Math.min(active,project.floors.length-1);start=null;save();paint();message('Действие повторено.')});
+$('undoMobile').addEventListener('click',()=>$('undo').click());
+$('redoMobile').addEventListener('click',()=>$('redo').click());
 $('reset').addEventListener('click',()=>{if(confirm('Создать новый проект? Текущий эскиз будет удалён.')){modify(()=>{project={floors:[deep(starter)],style:'classic'};active=0;start=null});message('Создан новый проект.') }});
 $('import').addEventListener('click', () => $('importFile').click());
 $('importFile').addEventListener('change', async event => {

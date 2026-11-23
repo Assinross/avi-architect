@@ -166,3 +166,82 @@ test('Мобильная лестница: лепестки изменяют с�
   await expect(tools.locator('[data-stair-facing="west"]')).toHaveAttribute('aria-pressed','true')
   expect(errors).toEqual([])
 })
+
+test('Мобильная шапка: название над компактными действиями, меню, история на плане', async ({page}) => {
+  const errors: string[] = []
+  page.on('pageerror',error=>errors.push(error.message))
+  await page.setViewportSize({width:390,height:844})
+  await page.goto('/workshop.html')
+
+  const logo=page.locator('.top .logo')
+  const primary=page.locator('.top .header-primary')
+  const menu=page.locator('#headerMenuToggle')
+  const extra=page.locator('#headerExtra')
+  await expect(menu).toBeVisible()
+  await expect(page.locator('#publish')).toBeVisible()
+  await expect(extra).toBeHidden()
+  await expect(page.locator('#undo')).toBeHidden()
+  await expect(page.locator('#undoMobile')).toBeVisible()
+  await expect(page.locator('#redoMobile')).toBeVisible()
+  await expect(page.locator('#undoMobile')).toBeDisabled()
+  await expect(page.locator('#redoMobile')).toBeDisabled()
+
+  const positions=await page.evaluate(()=>{
+    const box=(s:string)=>document.querySelector(s)!.getBoundingClientRect()
+    return {brandBottom:box('.top .logo').bottom,buttonsTop:box('.top .header-primary').top,
+      planTop:box('.plan-panel').top,headerBottom:box('.top').bottom,
+      undoTop:box('#undoMobile').top,planTitleTop:box('.plan-panel .viewport-head h2').top,
+      undoLeft:box('#undoMobile').left,planTitleRight:box('.plan-panel .viewport-head h2').right}
+  })
+  expect(positions.brandBottom).toBeLessThanOrEqual(positions.buttonsTop)
+  expect(positions.headerBottom).toBeLessThan(positions.planTop)
+  expect(Math.abs(positions.undoTop-positions.planTitleTop)).toBeLessThan(18)
+  expect(positions.planTitleRight).toBeLessThanOrEqual(positions.undoLeft)
+
+  await menu.click()
+  await expect(menu).toHaveAttribute('aria-expanded','true')
+  await expect(page.locator('#fromCity')).toBeVisible()
+  await expect(page.locator('#import')).toBeVisible()
+  await expect(page.locator('#export')).toBeVisible()
+  await expect(page.locator('#reset')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(menu).toHaveAttribute('aria-expanded','false')
+  await expect(extra).toBeHidden()
+  await menu.click()
+  await page.locator('.top .logo').click()
+  await expect(extra).toBeHidden()
+
+  await page.locator('#add').click()
+  await expect(page.locator('#floorcount')).toHaveText('2')
+  await expect(page.locator('#undoMobile')).toBeEnabled()
+  await page.locator('#undoMobile').click()
+  await expect(page.locator('#floorcount')).toHaveText('1')
+  await expect(page.locator('#redoMobile')).toBeEnabled()
+  await page.locator('#redoMobile').click()
+  await expect(page.locator('#floorcount')).toHaveText('2')
+
+  await page.setViewportSize({width:320,height:720})
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false)
+  await expect(page.locator('#headerMenuToggle')).toBeVisible()
+  await expect(page.locator('#undoMobile')).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test('Мобильное меню сохраняет карьерные действия и desktop кнопки', async ({page}) => {
+  await page.setViewportSize({width:390,height:844})
+  await page.goto('/workshop.html?mode=career&quest=landmark')
+  await expect(page.locator('#publish')).toHaveText('Сдать заказ')
+  await page.locator('#headerMenuToggle').click()
+  await expect(page.locator('#previewToggle')).toBeVisible()
+  await expect(page.locator('#fromCity')).toBeHidden()
+  await expect(page.locator('#import')).toBeHidden()
+  await page.locator('#headerMenuToggle').click()
+  await expect(page.locator('#previewToggle')).toBeHidden()
+
+  await page.setViewportSize({width:1280,height:800})
+  await expect(page.locator('#headerMenuToggle')).toBeHidden()
+  await expect(page.locator('#undo')).toBeVisible()
+  await expect(page.locator('#redo')).toBeVisible()
+  await expect(page.locator('#undoMobile')).toBeHidden()
+  await expect(page.locator('.top .logo')).toBeVisible()
+})
